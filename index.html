@@ -464,16 +464,16 @@ function renderTopbar(){
   if(currentTab==='workout' && workoutSubView==='detail'){
     const r = activeRoutine();
     bar.innerHTML = `
-      <div class="topbar-row">
-        <h1><button class="icon-btn" onclick="backToHome()" style="flex-shrink:0">${ICONS.back}</button> <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r?r.name:''}</span></h1>
-        ${syncBadge}
-      </div>
-      <div class="topbar-actions">
-        <button class="icon-btn" onclick="openHistory()" title="Geçmiş">${ICONS.history}</button>
-        <button class="icon-btn" onclick="toggleTimer()" title="Dinlenme sayacı">${ICONS.timer}</button>
-        <button class="finish-btn" id="startBtn" onclick="toggleSession()">${sessionActive?'Durdur':'Başlat'}</button>
-        <button class="icon-btn" id="saveBtn" onclick="saveProgress()" style="font-size:14px">${ICONS.save} Kaydet</button>
-        <button class="finish-btn" id="finishBtn" onclick="finishWorkout()">Bitir</button>
+      <div class="topbar-row" style="flex-wrap:nowrap">
+        <h1 style="font-size:16px;flex-shrink:1;min-width:0">
+          <button class="icon-btn" onclick="backToHome()" style="flex-shrink:0;font-size:17px">${ICONS.back}</button>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r?r.name:''}</span>
+        </h1>
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+          <button class="icon-btn" onclick="toggleTimer()" title="Dinlenme sayacı" style="font-size:17px;padding:5px">${ICONS.timer}</button>
+          <button class="finish-btn" id="startBtn" onclick="toggleSession()" style="padding:7px 12px;font-size:13px">${sessionActive?'Durdur':'Başlat'}</button>
+          <button class="finish-btn" id="finishBtn" onclick="finishWorkout()" style="padding:7px 12px;font-size:13px">Bitir</button>
+        </div>
       </div>`;
   } else {
     const titles = {workout:'Antrenman', stats:'İstatistikler', daily:'Rutin'};
