@@ -38,8 +38,10 @@ button{font-family:inherit;cursor:pointer}
 .muted{color:var(--muted);font-weight:400}
 
 /* ============ TOPBAR ============ */
-#topbar{position:sticky;top:0;background:rgba(5,6,11,.85);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;z-index:10;flex-wrap:wrap;gap:8px}
-#topbar h1{font-size:19px;margin:0;font-weight:700;display:flex;align-items:center;gap:8px}
+#topbar{position:sticky;top:0;background:rgba(5,6,11,.85);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;flex-direction:column;gap:10px;z-index:10}
+#topbar h1{font-size:19px;margin:0;font-weight:700;display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.topbar-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .icon-btn{background:none;border:none;color:var(--text);font-size:20px;padding:6px;border-radius:8px}
 .icon-btn:hover{background:var(--card2);box-shadow:var(--glow)}
@@ -220,7 +222,8 @@ button{font-family:inherit;cursor:pointer}
 <!-- Video ekle -->
 <div class="modal-bg" id="vidModal"><div class="modal">
   <h3>Video Ekle</h3>
-  <div class="hint">Bilgisayarından bir video dosyası seç. Ses otomatik kapalı gelir, oynatana kadar statik durur.</div>
+  <input id="ytInput" placeholder="YouTube linki (isteğe bağlı)">
+  <div class="hint">YouTube linki eklersen tüm cihazlarında görünür. Veya bilgisayarından bir video dosyası yükle (sadece bu cihazda kalır, sesi kapalı gelir):</div>
   <input type="file" id="fileInput" accept="video/*">
   <div class="row"><button class="cancel" onclick="closeModal('vidModal')">İptal</button><button class="save" onclick="saveVideo()">Kaydet</button></div>
 </div></div>
@@ -457,22 +460,24 @@ function renderApp(){
 }
 function renderTopbar(){
   const bar = document.getElementById('topbar');
-  const syncBadge = `<div style="display:flex;flex-direction:column;align-items:flex-end;line-height:1.3"><span class="muted" style="font-size:10px">v${APP_VERSION}</span><span id="syncStatus" style="font-size:11px;font-weight:600;color:var(--muted)"></span></div>`;
+  const syncBadge = `<div style="display:flex;flex-direction:column;align-items:flex-end;line-height:1.3;flex-shrink:0"><span class="muted" style="font-size:10px">v${APP_VERSION}</span><span id="syncStatus" style="font-size:11px;font-weight:600;color:var(--muted)"></span></div>`;
   if(currentTab==='workout' && workoutSubView==='detail'){
     const r = activeRoutine();
     bar.innerHTML = `
-      <h1><button class="icon-btn" onclick="backToHome()">${ICONS.back}</button> ${r?r.name:''}</h1>
-      <div class="header-right">
+      <div class="topbar-row">
+        <h1><button class="icon-btn" onclick="backToHome()" style="flex-shrink:0">${ICONS.back}</button> <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r?r.name:''}</span></h1>
         ${syncBadge}
+      </div>
+      <div class="topbar-actions">
         <button class="icon-btn" onclick="openHistory()" title="Geçmiş">${ICONS.history}</button>
         <button class="icon-btn" onclick="toggleTimer()" title="Dinlenme sayacı">${ICONS.timer}</button>
-        <button class="finish-btn" id="startBtn" onclick="toggleSession()">${sessionActive?'Antrenmanı Durdur':'Antrenmanı Başlat'}</button>
+        <button class="finish-btn" id="startBtn" onclick="toggleSession()">${sessionActive?'Durdur':'Başlat'}</button>
         <button class="icon-btn" id="saveBtn" onclick="saveProgress()" style="font-size:14px">${ICONS.save} Kaydet</button>
         <button class="finish-btn" id="finishBtn" onclick="finishWorkout()">Bitir</button>
       </div>`;
   } else {
     const titles = {workout:'Antrenman', stats:'İstatistikler', daily:'Rutin'};
-    bar.innerHTML = `<h1>${titles[currentTab]}</h1><div class="header-right">${syncBadge}</div>`;
+    bar.innerHTML = `<div class="topbar-row"><h1>${titles[currentTab]}</h1>${syncBadge}</div>`;
   }
 }
 function renderBottomNav(){
@@ -570,18 +575,41 @@ function deleteExercise(id){
 }
 function openVideoModal(id){
   activeExerciseId = id;
+  const ex = activeRoutine().exercises.find(x=>x.id===id);
+  document.getElementById('ytInput').value = ex.youtube || '';
   document.getElementById('fileInput').value = '';
   document.getElementById('vidModal').classList.add('show');
 }
+function ytId(url){
+  if(!url) return null;
+  url = url.trim();
+  let m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{6,})/);
+  if(m) return m[1];
+  m = url.match(/[?&]v=([A-Za-z0-9_-]{6,})/);
+  return m ? m[1] : null;
+}
 function saveVideo(){
   const ex = activeRoutine().exercises.find(x=>x.id===activeExerciseId);
+  const yt = document.getElementById('ytInput').value.trim();
   const file = document.getElementById('fileInput').files[0];
-  if(file){ const tx = db.transaction('videos','readwrite'); tx.objectStore('videos').put(file, ex.id); ex.hasLocalVideo = true; save(); }
-  closeModal('vidModal'); render();
+  ex.youtube = yt;
+  if(file){ const tx = db.transaction('videos','readwrite'); tx.objectStore('videos').put(file, ex.id); ex.hasLocalVideo = true; }
+  save(); closeModal('vidModal'); render();
+}
+function playVideo(exId){
+  const ex = activeRoutine().exercises.find(x=>x.id===exId);
+  const frame = document.getElementById('frame-'+exId);
+  frame.innerHTML = ''; frame.style.display = 'block';
+  const vid = ytId(ex.youtube);
+  if(vid){
+    frame.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${vid}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+  } else {
+    frame.innerHTML = '<div style="padding:14px;color:var(--muted);font-size:13px">Bu linkten video ID bulunamadı. Linki kontrol et.</div>';
+  }
 }
 function loadExerciseVideos(r){
   r.exercises.forEach(ex=>{
-    if(!ex.hasLocalVideo || !db) return;
+    if(!ex.hasLocalVideo || ex.youtube || !db) return;
     const tx = db.transaction('videos','readonly');
     tx.objectStore('videos').get(ex.id).onsuccess = e => {
       const blob = e.target.result;
@@ -624,10 +652,12 @@ function render(){
         <button class="del-set" onclick="removeSet('${ex.id}',${i})" title="Seti sil">×</button>
       </div>`;
     }).join('');
-    const videoBlock = ex.hasLocalVideo
-      ? `<div class="video-frame"><video id="vid-${ex.id}" muted playsinline preload="metadata" controls></video></div>
-         <button class="video-thumb" style="margin-top:6px" onclick="openVideoModal('${ex.id}')">${ICONS.edit} Videoyu Değiştir</button>`
-      : `<button class="video-thumb" onclick="openVideoModal('${ex.id}')">${ICONS.add} Video Ekle</button>`;
+    const videoBlock = ex.youtube
+      ? `<button class="video-thumb" onclick="playVideo('${ex.id}')">${ICONS.play} Videoyu İzle</button> <button class="icon-btn" style="font-size:13px" onclick="openVideoModal('${ex.id}')">Değiştir</button><div class="video-frame" id="frame-${ex.id}" style="display:none"></div>`
+      : ex.hasLocalVideo
+        ? `<div class="video-frame"><video id="vid-${ex.id}" muted playsinline preload="metadata" controls></video></div>
+           <button class="video-thumb" style="margin-top:6px" onclick="openVideoModal('${ex.id}')">${ICONS.edit} Videoyu Değiştir</button>`
+        : `<button class="video-thumb" onclick="openVideoModal('${ex.id}')">${ICONS.add} Video Ekle</button>`;
     return `<div class="exercise">
       <div class="ex-head">
         <input class="ex-name" value="${ex.name}" onclick="this.blur();openEditExercise('${ex.id}')" readonly>
