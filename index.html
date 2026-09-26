@@ -144,9 +144,9 @@ button{font-family:inherit;cursor:pointer}
 .cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .cal-header button{background:var(--card2);border:none;color:var(--text);width:32px;height:32px;border-radius:8px;font-size:16px}
 .cal-header h4{margin:0;font-size:15px;text-transform:capitalize}
-.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-bottom:14px;width:100%;max-width:100%}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:42px;gap:4px;margin-bottom:14px;width:100%;max-width:100%}
 .cal-dow{text-align:center;color:var(--muted);font-size:11px;padding:4px 0}
-.cal-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;background:var(--card2);font-size:13px;cursor:pointer;position:relative;min-width:0;overflow:hidden}
+.cal-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;background:var(--card2);font-size:13px;cursor:pointer;position:relative;min-width:0;overflow:hidden}
 .cal-cell.empty{background:none;cursor:default}
 .cal-cell.today{border:1px solid var(--accent)}
 .cal-cell.has-log{background:var(--done);color:var(--green);font-weight:700;box-shadow:0 0 10px rgba(77,159,255,.3)}
