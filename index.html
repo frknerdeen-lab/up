@@ -264,9 +264,8 @@ button{font-family:inherit;cursor:pointer}
 <!-- Video ekle -->
 <div class="modal-bg" id="vidModal"><div class="modal">
   <h3>Video Ekle</h3>
-  <input id="ytInput" placeholder="YouTube, Google Drive veya direkt video linki">
-  <div class="hint">En temiz oynatıcı için: videoyu kendi GitHub reponuna koyup Vercel linkini buraya yapıştır (örn. https://siten.vercel.app/videos/bench.mp4) — hiç YouTube/Drive arayüzü olmadan, bilgisayarındaki gibi çıplak oynatıcı gelir. Google Drive linki de sade ama üstünde ince bir Drive çubuğu kalır. Ya da bilgisayarından bir video dosyası yükle (sadece bu cihazda kalır, sesi kapalı gelir):</div>
-  <input type="file" id="fileInput" accept="video/*">
+  <input id="ytInput" placeholder="YouTube linki (Unlisted olabilir)">
+  <div class="hint">Unlisted YouTube linki yapıştır, tüm cihazlarında görünür.</div>
   <div class="row"><button class="cancel" onclick="closeModal('vidModal')">İptal</button><button class="save" onclick="saveVideo()">Kaydet</button></div>
 </div></div>
 
@@ -654,7 +653,6 @@ function openVideoModal(id){
   activeExerciseId = id;
   const ex = activeRoutine().exercises.find(x=>x.id===id);
   document.getElementById('ytInput').value = ex.youtube || '';
-  document.getElementById('fileInput').value = '';
   document.getElementById('vidModal').classList.add('show');
 }
 function ytId(url){
@@ -665,54 +663,28 @@ function ytId(url){
   m = url.match(/[?&]v=([A-Za-z0-9_-]{6,})/);
   return m ? m[1] : null;
 }
-function driveId(url){
-  if(!url) return null;
-  url = url.trim();
-  let m = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if(m) return m[1];
-  m = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
-  if(m) return m[1];
-  m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  return (m && url.includes('drive.google.com')) ? m[1] : null;
-}
-function videoKind(url){
-  if(!url || !url.trim()) return null;
-  if(ytId(url)) return 'youtube';
-  if(driveId(url)) return 'drive';
-  return 'direct';
-}
 function saveVideo(){
   const ex = activeRoutine().exercises.find(x=>x.id===activeExerciseId);
-  const yt = document.getElementById('ytInput').value.trim();
-  const file = document.getElementById('fileInput').files[0];
-  ex.youtube = yt;
-  if(file){ const tx = db.transaction('videos','readwrite'); tx.objectStore('videos').put(file, ex.id); ex.hasLocalVideo = true; }
+  ex.youtube = document.getElementById('ytInput').value.trim();
   save(); closeModal('vidModal'); render();
 }
-function playVideo(exId){
-  const ex = activeRoutine().exercises.find(x=>x.id===exId);
+function toggleVideo(exId){
   const frame = document.getElementById('frame-'+exId);
-  frame.innerHTML = ''; frame.style.display = 'block';
-  const vid = ytId(ex.youtube);
-  const drv = driveId(ex.youtube);
-  if(vid){
-    frame.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${vid}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-  } else if(drv){
-    frame.innerHTML = `<iframe src="https://drive.google.com/file/d/${drv}/preview" allow="autoplay" allowfullscreen></iframe>`;
+  const btn = document.getElementById('vidbtn-'+exId);
+  const isOpen = frame.style.display === 'block';
+  if(isOpen){
+    frame.style.display = 'none';
+    frame.innerHTML = '';
+    btn.textContent = ICONS.play+' Videoyu İzle';
   } else {
-    frame.innerHTML = '<div style="padding:14px;color:var(--muted);font-size:13px">Bu linkten video bulunamadı. YouTube ya da Google Drive linki olduğundan emin ol ve Drive dosyasının "Bağlantıya sahip olan herkes" olarak paylaşıldığını kontrol et.</div>';
+    const ex = activeRoutine().exercises.find(x=>x.id===exId);
+    const vid = ytId(ex.youtube);
+    frame.innerHTML = vid
+      ? `<iframe src="https://www.youtube-nocookie.com/embed/${vid}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`
+      : '<div style="padding:14px;color:var(--muted);font-size:13px">Bu linkten video ID bulunamadı. Linki kontrol et.</div>';
+    frame.style.display = 'block';
+    btn.textContent = '▲ Kapat';
   }
-}
-function loadExerciseVideos(r){
-  r.exercises.forEach(ex=>{
-    if(!ex.hasLocalVideo || ex.youtube || !db) return;
-    const tx = db.transaction('videos','readonly');
-    tx.objectStore('videos').get(ex.id).onsuccess = e => {
-      const blob = e.target.result;
-      const v = document.getElementById('vid-'+ex.id);
-      if(blob && v){ v.src = URL.createObjectURL(blob); v.muted = true; }
-    };
-  });
 }
 function addSet(exId){ activeRoutine().exercises.find(x=>x.id===exId).sets.push({kg:'',reps:'',done:false}); save(); render(); }
 function removeSet(exId, idx){ activeRoutine().exercises.find(x=>x.id===exId).sets.splice(idx,1); save(); render(); }
@@ -764,16 +736,13 @@ function exerciseInner(ex){
       <button class="del-set" onclick="removeSet('${ex.id}',${i})" title="Seti sil">×</button>
     </div>`;
   }).join('');
-  const vkind = videoKind(ex.youtube);
-  const videoBlock = (vkind==='youtube' || vkind==='drive')
-    ? `<button class="video-thumb" onclick="playVideo('${ex.id}')">${ICONS.play} Videoyu İzle</button> <button class="icon-btn" style="font-size:13px" onclick="openVideoModal('${ex.id}')">Değiştir</button><div class="video-frame" id="frame-${ex.id}" style="display:none"></div>`
-    : vkind==='direct'
-      ? `<div class="video-frame"><video src="${esc(ex.youtube.trim())}" muted playsinline preload="metadata" controls></video></div>
-         <button class="video-thumb" style="margin-top:6px" onclick="openVideoModal('${ex.id}')">${ICONS.edit} Videoyu Değiştir</button>`
-      : ex.hasLocalVideo
-        ? `<div class="video-frame"><video id="vid-${ex.id}" muted playsinline preload="metadata" controls></video></div>
-           <button class="video-thumb" style="margin-top:6px" onclick="openVideoModal('${ex.id}')">${ICONS.edit} Videoyu Değiştir</button>`
-        : `<button class="video-thumb" onclick="openVideoModal('${ex.id}')">${ICONS.add} Video Ekle</button>`;
+  const videoBlock = ytId(ex.youtube)
+    ? `<div style="display:flex;align-items:center;gap:6px">
+         <button class="video-thumb" id="vidbtn-${ex.id}" onclick="toggleVideo('${ex.id}')" style="flex:1">${ICONS.play} Videoyu İzle</button>
+         <button class="icon-btn" style="font-size:12px;padding:5px 8px" title="Videoyu Değiştir" onclick="openVideoModal('${ex.id}')">${ICONS.edit}</button>
+       </div>
+       <div class="video-frame" id="frame-${ex.id}" style="display:none"></div>`
+    : `<button class="video-thumb" onclick="openVideoModal('${ex.id}')">${ICONS.add} Video Ekle</button>`;
   const prevNote = getPrevNote(ex.name);
   const prevNoteBtn = prevNote ? `<button class="icon-btn" style="font-size:15px;flex-shrink:0" title="Geçen sefer: ${esc(prevNote)}" onclick="insertPrevNote('${ex.id}')">📋</button>` : '';
   return `
@@ -819,7 +788,6 @@ function render(){
     </div>`;
   }).join('');
   updateStats();
-  loadExerciseVideos(r);
 }
 
 /* =========================================================================
