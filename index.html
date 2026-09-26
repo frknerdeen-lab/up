@@ -88,10 +88,10 @@ button{font-family:inherit;cursor:pointer}
 .video-frame{margin-top:10px;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
 .video-frame iframe,.video-frame video{width:100%;display:block;aspect-ratio:16/9;background:#000}
 .table{margin-top:10px}
-.trow{display:grid;grid-template-columns:34px 1fr 60px 60px 34px 26px;gap:6px;align-items:center;margin-bottom:8px}
+.trow{display:grid;grid-template-columns:34px minmax(0,1fr) 60px 60px 34px 26px;gap:6px;align-items:center;margin-bottom:8px;width:100%;max-width:100%}
 .thead{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.3px}
 .setnum{background:var(--card2);border-radius:8px;text-align:center;padding:8px 0;font-weight:700}
-.prev{color:var(--muted);font-size:13px;text-align:center}
+.prev{color:var(--muted);font-size:13px;text-align:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trow input[type=number]{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 4px;text-align:center;font-size:14px;font-family:inherit}
 .trow input[type=number]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(77,159,255,.18)}
 .check{width:36px;height:36px;border-radius:8px;background:var(--card2);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:16px}
@@ -144,17 +144,17 @@ button{font-family:inherit;cursor:pointer}
 .cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .cal-header button{background:var(--card2);border:none;color:var(--text);width:32px;height:32px;border-radius:8px;font-size:16px}
 .cal-header h4{margin:0;font-size:15px;text-transform:capitalize}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-bottom:14px;width:100%;max-width:100%}
 .cal-dow{text-align:center;color:var(--muted);font-size:11px;padding:4px 0}
-.cal-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;background:var(--card2);font-size:13px;cursor:pointer;position:relative}
+.cal-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;background:var(--card2);font-size:13px;cursor:pointer;position:relative;min-width:0;overflow:hidden}
 .cal-cell.empty{background:none;cursor:default}
 .cal-cell.today{border:1px solid var(--accent)}
 .cal-cell.has-log{background:var(--done);color:var(--green);font-weight:700;box-shadow:0 0 10px rgba(77,159,255,.3)}
 .cal-dot{width:5px;height:5px;border-radius:50%;background:var(--green);margin-top:2px}
 
 /* ============ İSTATİSTİK PANELİ ============ */
-.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
-.stat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;text-align:center}
+.stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:20px;width:100%;max-width:100%}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;text-align:center;min-width:0;overflow:hidden}
 .stat-card-val{font-size:22px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .stat-card-label{color:var(--muted);font-size:12px;margin-top:4px}
 .stat-section{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px;margin-bottom:14px}
@@ -389,7 +389,7 @@ async function pullRemote(){
     const res = await fetch(`${FIREBASE_URL}/${SYNC_PATH}.json`);
     if(!res.ok) throw new Error('HTTP '+res.status);
     const remote = await res.json();
-    if(remote && remote.routines){
+    if(remote && typeof remote === 'object'){
       const remoteN = normalizeState(remote);
       if((remoteN.updatedAt||0) > (state.updatedAt||0)){
         state = remoteN;
