@@ -637,10 +637,16 @@ function openAddExercise(){
 function chooseExerciseType(type){
   exModalMode = type;
   document.getElementById('exTypeChoice').style.display = 'none';
-  if(type==='normal' || type==='treadmill'){
+  if(type==='treadmill'){
+    const r = activeRoutine();
+    r.exercises.push({ id: uid(), name:'Koşu Bandı', notes:'', youtube:'', type:'treadmill', treadmill:{speed:'',incline:'',duration:''}, sets:[] });
+    save(); closeModal('exModal'); render();
+    return;
+  }
+  if(type==='normal'){
     document.getElementById('exNormalFields').style.display = 'block';
-    document.getElementById('exNameInput').value = type==='treadmill' ? 'Koşu Bandı' : '';
-    document.getElementById('exNameInput').placeholder = type==='treadmill' ? 'İsim (örn. Koşu Bandı)' : 'Egzersiz adı (örn. Bench Press)';
+    document.getElementById('exNameInput').value = '';
+    document.getElementById('exNameInput').placeholder = 'Egzersiz adı (örn. Bench Press)';
     document.getElementById('exModalActions').style.display = 'flex';
   } else {
     document.getElementById('exCountChoice').style.display = 'block';
@@ -779,6 +785,20 @@ function insertPrevNote(exId){
   ta.focus();
 }
 function exerciseInner(ex){
+  if(ex.type==='treadmill'){
+    const t = ex.treadmill || {speed:'',incline:'',duration:''};
+    return `
+      <div class="ex-head">
+        <div class="ex-name" style="cursor:default">🏃 ${esc(ex.name)}</div>
+        <button class="ex-menu-btn" onclick="deleteExercise('${ex.id}')">${ICONS.close}</button>
+      </div>
+      <textarea class="ex-notes" data-exid="${ex.id}" rows="2" placeholder="Buraya not ekleyin..." style="margin-top:6px" oninput="activeRoutine().exercises.find(x=>x.id==='${ex.id}').notes=this.value;save()">${esc(ex.notes||'')}</textarea>
+      <div class="tm-grid" style="margin-top:10px">
+        <div><label class="tm-label">Hız (km/h)</label><input type="number" step="0.1" placeholder="0" value="${t.speed}" onchange="updateTreadmill('${ex.id}','speed',this.value)"></div>
+        <div><label class="tm-label">Eğim (%)</label><input type="number" step="0.5" placeholder="0" value="${t.incline}" onchange="updateTreadmill('${ex.id}','incline',this.value)"></div>
+        <div><label class="tm-label">Süre (dk)</label><input type="number" placeholder="0" value="${t.duration}" onchange="updateTreadmill('${ex.id}','duration',this.value)"></div>
+      </div>`;
+  }
   const videoBlock = ytId(ex.youtube)
     ? `<div style="display:flex;align-items:center;gap:6px">
          <button class="video-thumb" id="vidbtn-${ex.id}" onclick="toggleVideo('${ex.id}')" style="flex:1">${ICONS.play} Videoyu İzle</button>
@@ -798,19 +818,6 @@ function exerciseInner(ex){
       ${prevNoteBtn}
     </div>
     <div class="video-row">${videoBlock}</div>`;
-
-  if(ex.type==='treadmill'){
-    const t = ex.treadmill || {speed:'',incline:'',duration:''};
-    const prevT = getPrevTreadmill(ex.name);
-    const prevText = prevT ? `${prevT.speed||'-'} km/h · %${prevT.incline||0} eğim · ${prevT.duration||'-'} dk` : '-';
-    return `${head}
-      <div class="prev" style="text-align:left;margin:10px 0 8px;font-size:13px">Önceki: ${prevText}</div>
-      <div class="tm-grid">
-        <div><label class="tm-label">Hız (km/h)</label><input type="number" step="0.1" placeholder="0" value="${t.speed}" onchange="updateTreadmill('${ex.id}','speed',this.value)"></div>
-        <div><label class="tm-label">Eğim (%)</label><input type="number" step="0.5" placeholder="0" value="${t.incline}" onchange="updateTreadmill('${ex.id}','incline',this.value)"></div>
-        <div><label class="tm-label">Süre (dk)</label><input type="number" placeholder="0" value="${t.duration}" onchange="updateTreadmill('${ex.id}','duration',this.value)"></div>
-      </div>`;
-  }
 
   const prevArr = getPrevSets(ex.name);
   const rows = ex.sets.map((s,i) => {
@@ -1128,20 +1135,13 @@ function renderStats(){
     </div>
     <div class="stat-section">
       <div class="stat-section-head"><h3>🏃 Koşu Bandı</h3></div>
-      <div class="tm-swipe">
-        <div class="tm-swipe-page">
-          <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
-            <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${Math.round(tmTotalMin)}</div><div class="stat-card-label">Toplam Dk</div></div>
-            <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${tmAvgSpeed}</div><div class="stat-card-label">Ort. km/h</div></div>
-            <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">%${tmAvgIncline}</div><div class="stat-card-label">Ort. Eğim</div></div>
-          </div>
-        </div>
-        <div class="tm-swipe-page">
-          <div class="muted" style="font-size:11px;margin-bottom:4px">Hız trendi (km/h, son 10)</div>
-          ${svgLineChart(tmSpeedTrend, '#ff6a3d')}
-        </div>
+      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
+        <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${Math.round(tmTotalMin)}</div><div class="stat-card-label">Toplam Dk</div></div>
+        <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${tmAvgSpeed}</div><div class="stat-card-label">Ort. km/h</div></div>
+        <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">%${tmAvgIncline}</div><div class="stat-card-label">Ort. Eğim</div></div>
       </div>
-      <div class="chart-labels" style="justify-content:center;gap:6px;margin-top:2px"><span>← kaydır →</span></div>
+      <div class="muted" style="font-size:11px;margin-bottom:4px">Hız trendi (km/h, son 10)</div>
+      ${svgLineChart(tmSpeedTrend, '#ff6a3d')}
     </div>
     <div class="stat-grid">
       <div class="stat-card"><div class="stat-card-val">${state.workoutLog.length}</div><div class="stat-card-label">Toplam Antrenman</div></div>
