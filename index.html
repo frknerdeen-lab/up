@@ -79,6 +79,9 @@ button{font-family:inherit;cursor:pointer}
 
 /* ============ EGZERSİZ / SET TABLOSU ============ */
 .exercise{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:14px;margin-bottom:14px}
+.exercise.superset{border-color:#ff6a3d;box-shadow:0 0 18px rgba(255,106,61,.2)}
+.superset-label{background:linear-gradient(135deg,#ff3d3d,#ffb020);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.superset-divider{height:1px;background:var(--border);margin:16px 0}
 .ex-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 .ex-name{color:var(--accent);font-size:19px;font-weight:700;background:none;border:none;font-family:inherit;padding:0;width:100%}
 .ex-menu-btn{background:none;border:none;color:var(--muted);font-size:18px;padding:4px 8px}
@@ -87,7 +90,7 @@ button{font-family:inherit;cursor:pointer}
 .video-row{margin-top:10px}
 .video-thumb{display:inline-flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--accent);font-size:13px;font-weight:600}
 .video-thumb:hover{background:#20212a;box-shadow:var(--glow)}
-.video-frame{margin-top:10px;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+.video-frame{margin-top:10px;border-radius:12px;overflow:hidden;background:#000}
 .video-frame iframe,.video-frame video{width:100%;display:block;aspect-ratio:16/9;background:#000}
 .table{margin-top:10px}
 .trow{display:grid;grid-template-columns:34px minmax(0,1fr) 60px 60px 34px 26px;gap:6px;align-items:center;margin-bottom:8px;width:100%;max-width:100%}
@@ -215,8 +218,21 @@ button{font-family:inherit;cursor:pointer}
 <!-- Egzersiz ekle/düzenle -->
 <div class="modal-bg" id="exModal"><div class="modal">
   <h3 id="exModalTitle">Egzersiz Ekle</h3>
-  <input id="exNameInput" placeholder="Egzersiz adı (örn. Bench Press)">
-  <div class="row"><button class="cancel" onclick="closeModal('exModal')">İptal</button><button class="save" onclick="saveExercise()">Kaydet</button></div>
+  <div class="row" id="exTypeChoice">
+    <button class="small-btn" style="flex:1;padding:12px;font-size:14px" onclick="chooseExerciseType('normal')">Normal</button>
+    <button class="small-btn" style="flex:1;padding:12px;font-size:14px" onclick="chooseExerciseType('superset')">⚡ Süper Set</button>
+  </div>
+  <div id="exNormalFields" style="display:none">
+    <input id="exNameInput" placeholder="Egzersiz adı (örn. Bench Press)">
+  </div>
+  <div id="exSupersetFields" style="display:none">
+    <input id="exNameInput1" placeholder="1. hareket (örn. Bench Press)">
+    <input id="exNameInput2" placeholder="2. hareket (örn. Chest Fly)">
+  </div>
+  <div class="row" id="exModalActions" style="display:none">
+    <button class="cancel" onclick="closeModal('exModal')">İptal</button>
+    <button class="save" onclick="saveExercise()">Kaydet</button>
+  </div>
 </div></div>
 
 <!-- Video ekle -->
@@ -545,25 +561,60 @@ function deleteRoutine(id){
 /* =========================================================================
    EGZERSİZ / SET YÖNETİMİ (aktif rutine göre)
    ========================================================================= */
+let exModalMode = null;
 function openAddExercise(){
-  document.getElementById('exModalTitle').textContent = 'Egzersiz Ekle';
-  document.getElementById('exNameInput').value = '';
   activeExerciseId = null;
+  exModalMode = null;
+  document.getElementById('exModalTitle').textContent = 'Egzersiz Ekle';
+  document.getElementById('exTypeChoice').style.display = 'flex';
+  document.getElementById('exNormalFields').style.display = 'none';
+  document.getElementById('exSupersetFields').style.display = 'none';
+  document.getElementById('exModalActions').style.display = 'none';
   document.getElementById('exModal').classList.add('show');
+}
+function chooseExerciseType(type){
+  exModalMode = type;
+  document.getElementById('exTypeChoice').style.display = 'none';
+  document.getElementById('exModalActions').style.display = 'flex';
+  if(type==='normal'){
+    document.getElementById('exNormalFields').style.display = 'block';
+    document.getElementById('exNameInput').value = '';
+  } else {
+    document.getElementById('exSupersetFields').style.display = 'block';
+    document.getElementById('exNameInput1').value = '';
+    document.getElementById('exNameInput2').value = '';
+  }
 }
 function openEditExercise(id){
   const ex = activeRoutine().exercises.find(x=>x.id===id);
-  document.getElementById('exModalTitle').textContent = 'Egzersiz Adını Düzenle';
-  document.getElementById('exNameInput').value = ex.name;
+  exModalMode = 'edit';
   activeExerciseId = id;
+  document.getElementById('exModalTitle').textContent = 'Egzersiz Adını Düzenle';
+  document.getElementById('exTypeChoice').style.display = 'none';
+  document.getElementById('exSupersetFields').style.display = 'none';
+  document.getElementById('exNormalFields').style.display = 'block';
+  document.getElementById('exModalActions').style.display = 'flex';
+  document.getElementById('exNameInput').value = ex.name;
   document.getElementById('exModal').classList.add('show');
 }
 function saveExercise(){
-  const name = document.getElementById('exNameInput').value.trim();
-  if(!name) return;
   const r = activeRoutine();
-  if(activeExerciseId){ r.exercises.find(x=>x.id===activeExerciseId).name = name; }
-  else { r.exercises.push({ id: uid(), name, notes:'', youtube:'', hasLocalVideo:false, sets:[{kg:'',reps:'',done:false}] }); }
+  if(exModalMode==='edit'){
+    const name = document.getElementById('exNameInput').value.trim();
+    if(!name) return;
+    r.exercises.find(x=>x.id===activeExerciseId).name = name;
+  } else if(exModalMode==='superset'){
+    const n1 = document.getElementById('exNameInput1').value.trim();
+    const n2 = document.getElementById('exNameInput2').value.trim();
+    if(!n1 || !n2) return;
+    const sid = uid();
+    r.exercises.push({ id: uid(), name:n1, notes:'', youtube:'', hasLocalVideo:false, sets:[{kg:'',reps:'',done:false}], supersetId: sid });
+    r.exercises.push({ id: uid(), name:n2, notes:'', youtube:'', hasLocalVideo:false, sets:[{kg:'',reps:'',done:false}], supersetId: sid });
+  } else {
+    const name = document.getElementById('exNameInput').value.trim();
+    if(!name) return;
+    r.exercises.push({ id: uid(), name, notes:'', youtube:'', hasLocalVideo:false, sets:[{kg:'',reps:'',done:false}] });
+  }
   save(); closeModal('exModal'); render();
 }
 function deleteExercise(id){
@@ -636,40 +687,61 @@ function getPrevSets(name){
   if(!entries.length) return [];
   return entries[entries.length-1].exercises.find(ex=>ex.name===name).sets;
 }
+function exerciseInner(ex){
+  const prevArr = getPrevSets(ex.name);
+  const rows = ex.sets.map((s,i) => {
+    const prev = prevArr[i] ? `${prevArr[i].kg}kg x ${prevArr[i].reps}` : '-';
+    return `<div class="trow ${s.done?'done':''}">
+      <div class="setnum">${i+1}</div><div class="prev">${prev}</div>
+      <input type="number" placeholder="0" value="${s.kg}" onchange="updateSet('${ex.id}',${i},'kg',this.value)">
+      <input type="number" placeholder="0" value="${s.reps}" onchange="updateSet('${ex.id}',${i},'reps',this.value)">
+      <button class="check" onclick="toggleDone('${ex.id}',${i})">✓</button>
+      <button class="del-set" onclick="removeSet('${ex.id}',${i})" title="Seti sil">×</button>
+    </div>`;
+  }).join('');
+  const videoBlock = ex.youtube
+    ? `<button class="video-thumb" onclick="playVideo('${ex.id}')">${ICONS.play} Videoyu İzle</button> <button class="icon-btn" style="font-size:13px" onclick="openVideoModal('${ex.id}')">Değiştir</button><div class="video-frame" id="frame-${ex.id}" style="display:none"></div>`
+    : ex.hasLocalVideo
+      ? `<div class="video-frame"><video id="vid-${ex.id}" muted playsinline preload="metadata" controls></video></div>
+         <button class="video-thumb" style="margin-top:6px" onclick="openVideoModal('${ex.id}')">${ICONS.edit} Videoyu Değiştir</button>`
+      : `<button class="video-thumb" onclick="openVideoModal('${ex.id}')">${ICONS.add} Video Ekle</button>`;
+  return `
+    <div class="ex-head">
+      <input class="ex-name" value="${ex.name}" onclick="this.blur();openEditExercise('${ex.id}')" readonly>
+      <button class="ex-menu-btn" onclick="deleteExercise('${ex.id}')">${ICONS.close}</button>
+    </div>
+    <input class="ex-notes" placeholder="Buraya not ekleyin..." value="${ex.notes||''}" onchange="activeRoutine().exercises.find(x=>x.id==='${ex.id}').notes=this.value;save()">
+    <div class="video-row">${videoBlock}</div>
+    <div class="table">
+      <div class="trow thead"><div>SET</div><div style="text-align:center">ÖNCEKİ</div><div style="text-align:center">KG</div><div style="text-align:center">TEKRAR</div><div></div><div></div></div>
+      ${rows}
+    </div>
+    <button class="add-set" onclick="addSet('${ex.id}')">+ Set Ekle</button>`;
+}
 function render(){
   const r = activeRoutine();
   const list = document.getElementById('exerciseList');
   if(!r || r.exercises.length===0){ list.innerHTML = '<div class="empty">Bu programda henüz egzersiz yok.<br>Aşağıdaki butondan ekle.</div>'; updateStats(); return; }
-  list.innerHTML = r.exercises.map(ex => {
-    const prevArr = getPrevSets(ex.name);
-    const rows = ex.sets.map((s,i) => {
-      const prev = prevArr[i] ? `${prevArr[i].kg}kg x ${prevArr[i].reps}` : '-';
-      return `<div class="trow ${s.done?'done':''}">
-        <div class="setnum">${i+1}</div><div class="prev">${prev}</div>
-        <input type="number" placeholder="0" value="${s.kg}" onchange="updateSet('${ex.id}',${i},'kg',this.value)">
-        <input type="number" placeholder="0" value="${s.reps}" onchange="updateSet('${ex.id}',${i},'reps',this.value)">
-        <button class="check" onclick="toggleDone('${ex.id}',${i})">✓</button>
-        <button class="del-set" onclick="removeSet('${ex.id}',${i})" title="Seti sil">×</button>
-      </div>`;
-    }).join('');
-    const videoBlock = ex.youtube
-      ? `<button class="video-thumb" onclick="playVideo('${ex.id}')">${ICONS.play} Videoyu İzle</button> <button class="icon-btn" style="font-size:13px" onclick="openVideoModal('${ex.id}')">Değiştir</button><div class="video-frame" id="frame-${ex.id}" style="display:none"></div>`
-      : ex.hasLocalVideo
-        ? `<div class="video-frame"><video id="vid-${ex.id}" muted playsinline preload="metadata" controls></video></div>
-           <button class="video-thumb" style="margin-top:6px" onclick="openVideoModal('${ex.id}')">${ICONS.edit} Videoyu Değiştir</button>`
-        : `<button class="video-thumb" onclick="openVideoModal('${ex.id}')">${ICONS.add} Video Ekle</button>`;
-    return `<div class="exercise">
-      <div class="ex-head">
-        <input class="ex-name" value="${ex.name}" onclick="this.blur();openEditExercise('${ex.id}')" readonly>
-        <button class="ex-menu-btn" onclick="deleteExercise('${ex.id}')">${ICONS.close}</button>
-      </div>
-      <input class="ex-notes" placeholder="Buraya not ekleyin..." value="${ex.notes||''}" onchange="activeRoutine().exercises.find(x=>x.id==='${ex.id}').notes=this.value;save()">
-      <div class="video-row">${videoBlock}</div>
-      <div class="table">
-        <div class="trow thead"><div>SET</div><div style="text-align:center">ÖNCEKİ</div><div style="text-align:center">KG</div><div style="text-align:center">TEKRAR</div><div></div><div></div></div>
-        ${rows}
-      </div>
-      <button class="add-set" onclick="addSet('${ex.id}')">+ Set Ekle</button>
+  const groups = [];
+  let i = 0;
+  while(i < r.exercises.length){
+    const ex = r.exercises[i];
+    const next = r.exercises[i+1];
+    if(ex.supersetId && next && next.supersetId===ex.supersetId){
+      groups.push({type:'superset', a:ex, b:next});
+      i += 2;
+    } else {
+      groups.push({type:'single', ex});
+      i += 1;
+    }
+  }
+  list.innerHTML = groups.map(g=>{
+    if(g.type==='single') return `<div class="exercise">${exerciseInner(g.ex)}</div>`;
+    return `<div class="exercise superset">
+      <div class="superset-label">⚡ Süper Set</div>
+      ${exerciseInner(g.a)}
+      <div class="superset-divider"></div>
+      ${exerciseInner(g.b)}
     </div>`;
   }).join('');
   updateStats();
