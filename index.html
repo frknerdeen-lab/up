@@ -104,6 +104,10 @@ button{font-family:inherit;cursor:pointer}
 .trow.done input[type=number]{background:var(--done);border-color:var(--done-border)}
 .trow.done .check{background:var(--done);border-color:var(--done-border);color:var(--green)}
 .add-set{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:11px;font-size:14px;font-weight:600;margin-top:4px}
+.tm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tm-label{display:block;color:var(--muted);font-size:11px;margin-bottom:4px}
+.tm-grid input{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 4px;text-align:center;font-size:14px;font-family:inherit}
+.tm-grid input:focus{outline:none;border-color:var(--accent)}
 .add-set:hover{background:#20212a}
 .add-exercise{width:100%;background:var(--card);border:1.5px dashed var(--border);color:var(--accent);border-radius:14px;padding:16px;font-size:15px;font-weight:700}
 .add-exercise:hover{border-color:var(--accent)}
@@ -168,6 +172,8 @@ button{font-family:inherit;cursor:pointer}
 .stat-section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .stat-section-head h3{margin:0}
 .chart-labels{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:4px}
+.tm-swipe{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;-webkit-overflow-scrolling:touch}
+.tm-swipe-page{flex:0 0 100%;scroll-snap-align:start;min-width:0}
 .measure-table{width:100%;border-collapse:collapse;font-size:14px}
 .measure-table th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;padding:6px 4px;border-bottom:1px solid var(--border)}
 .measure-table td{padding:7px 4px;border-bottom:1px solid var(--border)}
@@ -245,8 +251,9 @@ button{font-family:inherit;cursor:pointer}
 <div class="modal-bg" id="exModal"><div class="modal">
   <h3 id="exModalTitle">Egzersiz Ekle</h3>
   <div class="row" id="exTypeChoice">
-    <button class="small-btn" style="flex:1;padding:12px;font-size:14px" onclick="chooseExerciseType('normal')">Normal</button>
-    <button class="small-btn" style="flex:1;padding:12px;font-size:14px" onclick="chooseExerciseType('superset')">⚡ Süper Set</button>
+    <button class="small-btn" style="flex:1;padding:10px 6px;font-size:13px" onclick="chooseExerciseType('normal')">Normal</button>
+    <button class="small-btn" style="flex:1;padding:10px 6px;font-size:13px" onclick="chooseExerciseType('superset')">⚡ Süper Set</button>
+    <button class="small-btn" style="flex:1;padding:10px 6px;font-size:13px" onclick="chooseExerciseType('treadmill')">🏃 Koşu Bandı</button>
   </div>
   <div id="exCountChoice" style="display:none">
     <div class="hint" style="margin-top:0">Kaç hareket?</div>
@@ -296,6 +303,13 @@ button{font-family:inherit;cursor:pointer}
   <h3>Alışkanlık Ekle</h3>
   <input id="habitNameInput" placeholder="Örn. Diş fırçala">
   <div class="row"><button class="cancel" onclick="closeModal('habitModal')">İptal</button><button class="save" onclick="saveHabit()">Kaydet</button></div>
+</div></div>
+
+<!-- Koşu bandı haftalık hedef -->
+<div class="modal-bg" id="treadmillGoalModal"><div class="modal">
+  <h3>Haftalık Koşu Bandı Hedefi</h3>
+  <input id="treadmillGoalInput" type="number" min="1" placeholder="Örn. 3">
+  <div class="row"><button class="cancel" onclick="closeModal('treadmillGoalModal')">İptal</button><button class="save" onclick="saveTreadmillGoal()">Kaydet</button></div>
 </div></div>
 
 <!-- Genel onay -->
@@ -370,17 +384,24 @@ function normalizeState(s){
   if(!Array.isArray(s.routines)) s.routines = [];
   s.routines.forEach(r=>{
     if(!Array.isArray(r.exercises)) r.exercises = [];
-    r.exercises.forEach(ex=>{ if(!Array.isArray(ex.sets)) ex.sets = []; });
+    r.exercises.forEach(ex=>{
+      if(!Array.isArray(ex.sets)) ex.sets = [];
+      if(ex.type==='treadmill' && (!ex.treadmill || typeof ex.treadmill!=='object')) ex.treadmill = {speed:'',incline:'',duration:''};
+    });
   });
   if(!Array.isArray(s.workoutLog)) s.workoutLog = [];
   s.workoutLog.forEach(e=>{
     if(!Array.isArray(e.exercises)) e.exercises = [];
-    e.exercises.forEach(ex=>{ if(!Array.isArray(ex.sets)) ex.sets = []; });
+    e.exercises.forEach(ex=>{
+      if(ex.type==='treadmill'){ if(!ex.treadmill || typeof ex.treadmill!=='object') ex.treadmill = {}; }
+      else if(!Array.isArray(ex.sets)) ex.sets = [];
+    });
   });
   if(!Array.isArray(s.measurements)) s.measurements = [];
   if(!Array.isArray(s.dailyHabits)) s.dailyHabits = [];
   if(!s.dailyLog || typeof s.dailyLog !== 'object' || Array.isArray(s.dailyLog)) s.dailyLog = {};
   if(!Array.isArray(s.notes)) s.notes = [];
+  if(!s.treadmillWeeklyGoal) s.treadmillWeeklyGoal = 3;
   return s;
 }
 let state = JSON.parse(localStorage.getItem('heavyState') || 'null') || {};
@@ -616,9 +637,10 @@ function openAddExercise(){
 function chooseExerciseType(type){
   exModalMode = type;
   document.getElementById('exTypeChoice').style.display = 'none';
-  if(type==='normal'){
+  if(type==='normal' || type==='treadmill'){
     document.getElementById('exNormalFields').style.display = 'block';
-    document.getElementById('exNameInput').value = '';
+    document.getElementById('exNameInput').value = type==='treadmill' ? 'Koşu Bandı' : '';
+    document.getElementById('exNameInput').placeholder = type==='treadmill' ? 'İsim (örn. Koşu Bandı)' : 'Egzersiz adı (örn. Bench Press)';
     document.getElementById('exModalActions').style.display = 'flex';
   } else {
     document.getElementById('exCountChoice').style.display = 'block';
@@ -664,6 +686,9 @@ function saveExercise(){
     names.forEach(n=>{
       r.exercises.push({ id: uid(), name:n, notes:'', youtube:'', sets:[{kg:'',reps:'',done:false}], supersetId: sid });
     });
+  } else if(exModalMode==='treadmill'){
+    const name = document.getElementById('exNameInput').value.trim() || 'Koşu Bandı';
+    r.exercises.push({ id: uid(), name, notes:'', youtube:'', type:'treadmill', treadmill:{speed:'',incline:'',duration:''}, sets:[] });
   } else {
     const name = document.getElementById('exNameInput').value.trim();
     if(!name) return;
@@ -723,7 +748,7 @@ function toggleDone(exId, idx){ const s = activeRoutine().exercises.find(x=>x.id
 function updateStats(){
   const r = activeRoutine();
   let vol = 0, sets = 0;
-  (r ? r.exercises : []).forEach(ex => ex.sets.forEach(s => { if(s.done){ vol += (parseFloat(s.kg)||0)*(parseFloat(s.reps)||0); sets++; } }));
+  (r ? r.exercises : []).forEach(ex => { if(ex.type==='treadmill') return; ex.sets.forEach(s => { if(s.done){ vol += (parseFloat(s.kg)||0)*(parseFloat(s.reps)||0); sets++; } }); });
   document.getElementById('volume').textContent = vol.toLocaleString('tr-TR') + ' kg';
   document.getElementById('setCount').textContent = sets;
 }
@@ -754,6 +779,39 @@ function insertPrevNote(exId){
   ta.focus();
 }
 function exerciseInner(ex){
+  const videoBlock = ytId(ex.youtube)
+    ? `<div style="display:flex;align-items:center;gap:6px">
+         <button class="video-thumb" id="vidbtn-${ex.id}" onclick="toggleVideo('${ex.id}')" style="flex:1">${ICONS.play} Videoyu İzle</button>
+         <button class="icon-btn" style="font-size:12px;padding:5px 8px" title="Videoyu Değiştir" onclick="openVideoModal('${ex.id}')">${ICONS.edit}</button>
+       </div>
+       <div class="video-frame" id="frame-${ex.id}" style="display:none"></div>`
+    : `<button class="video-thumb" onclick="openVideoModal('${ex.id}')">${ICONS.add} Video Ekle</button>`;
+  const prevNote = getPrevNote(ex.name);
+  const prevNoteBtn = prevNote ? `<button class="icon-btn" style="font-size:15px;flex-shrink:0" title="Geçen sefer: ${esc(prevNote)}" onclick="insertPrevNote('${ex.id}')">📋</button>` : '';
+  const head = `
+    <div class="ex-head">
+      <input class="ex-name" value="${ex.name}" onclick="this.blur();openEditExercise('${ex.id}')" readonly>
+      <button class="ex-menu-btn" onclick="deleteExercise('${ex.id}')">${ICONS.close}</button>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:4px;margin-top:6px">
+      <textarea class="ex-notes" data-exid="${ex.id}" rows="2" placeholder="Buraya not ekleyin..." oninput="activeRoutine().exercises.find(x=>x.id==='${ex.id}').notes=this.value;save()">${esc(ex.notes||'')}</textarea>
+      ${prevNoteBtn}
+    </div>
+    <div class="video-row">${videoBlock}</div>`;
+
+  if(ex.type==='treadmill'){
+    const t = ex.treadmill || {speed:'',incline:'',duration:''};
+    const prevT = getPrevTreadmill(ex.name);
+    const prevText = prevT ? `${prevT.speed||'-'} km/h · %${prevT.incline||0} eğim · ${prevT.duration||'-'} dk` : '-';
+    return `${head}
+      <div class="prev" style="text-align:left;margin:10px 0 8px;font-size:13px">Önceki: ${prevText}</div>
+      <div class="tm-grid">
+        <div><label class="tm-label">Hız (km/h)</label><input type="number" step="0.1" placeholder="0" value="${t.speed}" onchange="updateTreadmill('${ex.id}','speed',this.value)"></div>
+        <div><label class="tm-label">Eğim (%)</label><input type="number" step="0.5" placeholder="0" value="${t.incline}" onchange="updateTreadmill('${ex.id}','incline',this.value)"></div>
+        <div><label class="tm-label">Süre (dk)</label><input type="number" placeholder="0" value="${t.duration}" onchange="updateTreadmill('${ex.id}','duration',this.value)"></div>
+      </div>`;
+  }
+
   const prevArr = getPrevSets(ex.name);
   const rows = ex.sets.map((s,i) => {
     const prev = prevArr[i] ? `${prevArr[i].kg}kg x ${prevArr[i].reps}` : '-';
@@ -765,30 +823,23 @@ function exerciseInner(ex){
       <button class="del-set" onclick="removeSet('${ex.id}',${i})" title="Seti sil">×</button>
     </div>`;
   }).join('');
-  const videoBlock = ytId(ex.youtube)
-    ? `<div style="display:flex;align-items:center;gap:6px">
-         <button class="video-thumb" id="vidbtn-${ex.id}" onclick="toggleVideo('${ex.id}')" style="flex:1">${ICONS.play} Videoyu İzle</button>
-         <button class="icon-btn" style="font-size:12px;padding:5px 8px" title="Videoyu Değiştir" onclick="openVideoModal('${ex.id}')">${ICONS.edit}</button>
-       </div>
-       <div class="video-frame" id="frame-${ex.id}" style="display:none"></div>`
-    : `<button class="video-thumb" onclick="openVideoModal('${ex.id}')">${ICONS.add} Video Ekle</button>`;
-  const prevNote = getPrevNote(ex.name);
-  const prevNoteBtn = prevNote ? `<button class="icon-btn" style="font-size:15px;flex-shrink:0" title="Geçen sefer: ${esc(prevNote)}" onclick="insertPrevNote('${ex.id}')">📋</button>` : '';
-  return `
-    <div class="ex-head">
-      <input class="ex-name" value="${ex.name}" onclick="this.blur();openEditExercise('${ex.id}')" readonly>
-      <button class="ex-menu-btn" onclick="deleteExercise('${ex.id}')">${ICONS.close}</button>
-    </div>
-    <div style="display:flex;align-items:flex-start;gap:4px;margin-top:6px">
-      <textarea class="ex-notes" data-exid="${ex.id}" rows="2" placeholder="Buraya not ekleyin..." oninput="activeRoutine().exercises.find(x=>x.id==='${ex.id}').notes=this.value;save()">${esc(ex.notes||'')}</textarea>
-      ${prevNoteBtn}
-    </div>
-    <div class="video-row">${videoBlock}</div>
+  return `${head}
     <div class="table">
       <div class="trow thead"><div>SET</div><div style="text-align:center">ÖNCEKİ</div><div style="text-align:center">KG</div><div style="text-align:center">TEKRAR</div><div></div><div></div></div>
       ${rows}
     </div>
     <button class="add-set" onclick="addSet('${ex.id}')">+ Set Ekle</button>`;
+}
+function updateTreadmill(exId, field, val){
+  const ex = activeRoutine().exercises.find(x=>x.id===exId);
+  ex.treadmill[field] = val;
+  save();
+}
+function getPrevTreadmill(name){
+  const r = activeRoutine();
+  const entries = state.workoutLog.filter(e=>e.routineId===r.id && e.exercises.some(ex=>ex.name===name && ex.type==='treadmill'));
+  if(!entries.length) return null;
+  return entries[entries.length-1].exercises.find(ex=>ex.name===name).treadmill;
 }
 function getExerciseGroups(exercises){
   const groups = [];
@@ -856,7 +907,13 @@ function toggleSession(){
 }
 function logToday(){
   const r = activeRoutine(); const today = todayStr();
-  const entryExercises = r.exercises.filter(ex=>ex.sets.some(s=>s.done)).map(ex=>({name:ex.name, notes: ex.notes||'', sets: ex.sets.filter(s=>s.done).map(s=>({kg:s.kg||0, reps:s.reps||0}))}));
+  const entryExercises = r.exercises.filter(ex=>{
+    if(ex.type==='treadmill') return ex.treadmill && (ex.treadmill.speed || ex.treadmill.duration);
+    return ex.sets.some(s=>s.done);
+  }).map(ex=>{
+    if(ex.type==='treadmill') return {name:ex.name, type:'treadmill', notes:ex.notes||'', treadmill:{speed:ex.treadmill.speed||0, incline:ex.treadmill.incline||0, duration:ex.treadmill.duration||0}, sets:[]};
+    return {name:ex.name, notes: ex.notes||'', sets: ex.sets.filter(s=>s.done).map(s=>({kg:s.kg||0, reps:s.reps||0}))};
+  });
   if(entryExercises.length===0) return false;
   const duration = Math.round(getElapsedMs()/1000);
   let entry = state.workoutLog.find(e=>e.date===today && e.routineId===r.id);
@@ -876,7 +933,11 @@ function finishWorkout(){
   if(!r || r.exercises.length===0){ backToHome(); return; }
   askConfirm('Antrenmanı bitirip kaydetmek istiyor musun?', ()=>{
     logToday();
-    r.exercises.forEach(ex=>{ ex.sets.forEach(s=>{ s.kg=''; s.reps=''; s.done=false; }); ex.notes=''; });
+    r.exercises.forEach(ex=>{
+      if(ex.type==='treadmill'){ ex.treadmill = {speed:'',incline:'',duration:''}; }
+      else { ex.sets.forEach(s=>{ s.kg=''; s.reps=''; s.done=false; }); }
+      ex.notes='';
+    });
     save();
     backToHome();
   }, 'Bitir');
@@ -981,6 +1042,41 @@ function isActiveDay(dateStr){
   const hasHabit = Object.values(habitsToday).some(v=>v);
   return hasWorkout || hasHabit;
 }
+function computeWeightRoutineCoverage(){
+  const weekDates = getWeekDates(todayStr());
+  const weightRoutines = state.routines.filter(r=>r.exercises.some(ex=>ex.type!=='treadmill'));
+  if(weightRoutines.length===0) return {pct:0, done:0, total:0};
+  const doneIds = new Set();
+  state.workoutLog.forEach(e=>{
+    if(weekDates.includes(e.date) && e.exercises.some(ex=>ex.type!=='treadmill')) doneIds.add(e.routineId);
+  });
+  const done = weightRoutines.filter(r=>doneIds.has(r.id)).length;
+  return { pct: Math.round((done/weightRoutines.length)*100), done, total: weightRoutines.length };
+}
+function computeTreadmillGoal(){
+  const weekDates = getWeekDates(todayStr());
+  const goal = state.treadmillWeeklyGoal || 3;
+  const sessionDates = new Set();
+  state.workoutLog.forEach(e=>{
+    if(weekDates.includes(e.date) && e.exercises.some(ex=>ex.type==='treadmill')) sessionDates.add(e.date);
+  });
+  return { pct: Math.min(100, Math.round((sessionDates.size/goal)*100)), done: sessionDates.size, goal };
+}
+function getTreadmillLogs(){
+  const logs = [];
+  state.workoutLog.forEach(e=>{ e.exercises.forEach(ex=>{ if(ex.type==='treadmill' && ex.treadmill){ logs.push({date:e.date, ...ex.treadmill}); } }); });
+  return logs;
+}
+function openTreadmillGoalModal(){
+  document.getElementById('treadmillGoalInput').value = state.treadmillWeeklyGoal || 3;
+  document.getElementById('treadmillGoalModal').classList.add('show');
+}
+function saveTreadmillGoal(){
+  const v = parseInt(document.getElementById('treadmillGoalInput').value, 10);
+  if(!v || v<1) return;
+  state.treadmillWeeklyGoal = v;
+  save(); closeModal('treadmillGoalModal'); renderStats();
+}
 function computeWeeklyVolume(weeks){
   weeks = weeks||8; const map={};
   state.workoutLog.forEach(e=>{ const wk=isoWeekKey(e.date); const vol=e.exercises.reduce((a,ex)=>a+ex.sets.reduce((b,s)=>b+(parseFloat(s.kg)||0)*(parseFloat(s.reps)||0),0),0); map[wk]=(map[wk]||0)+vol; });
@@ -1006,11 +1102,46 @@ function renderStats(){
   const durTrend = state.workoutLog.filter(e=>e.durationSec).slice(-10).map(e=>Math.round(e.durationSec/60));
   const thisWeekDays = getWeekDates(todayStr()).filter(isActiveDay).length;
   const weekPct = Math.round((thisWeekDays/7)*100);
+  const weightCov = computeWeightRoutineCoverage();
+  const tmGoal = computeTreadmillGoal();
+  const tmLogs = getTreadmillLogs();
+  const tmTotalMin = tmLogs.reduce((a,t)=>a+(parseFloat(t.duration)||0),0);
+  const tmAvgSpeed = tmLogs.length ? (tmLogs.reduce((a,t)=>a+(parseFloat(t.speed)||0),0)/tmLogs.length).toFixed(1) : '-';
+  const tmAvgIncline = tmLogs.length ? (tmLogs.reduce((a,t)=>a+(parseFloat(t.incline)||0),0)/tmLogs.length).toFixed(1) : '-';
+  const tmSpeedTrend = tmLogs.slice(-10).map(t=>parseFloat(t.speed)||0);
 
   document.getElementById('view-stats').innerHTML = `
-    <div class="stat-section" style="display:flex;align-items:center;gap:18px">
-      ${svgRingChart(weekPct)}
-      <div><div style="font-size:15px;font-weight:700">Bu Hafta</div><div class="muted" style="font-size:13px;margin-top:2px">${thisWeekDays} / 7 gün aktiftin (antrenman veya alışkanlık)</div></div>
+    <div class="stat-section">
+      <h3 style="margin-bottom:14px">Haftalık Hedefler</h3>
+      <div style="display:flex;gap:10px">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
+          ${svgRingChart(weightCov.pct, 92, 9, ['#4d9fff','#a855f7'])}
+          <div style="font-size:12px;font-weight:700">Ağırlık Antrenmanı</div>
+          <div class="muted" style="font-size:11px">${weightCov.done}/${weightCov.total} program bu hafta</div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
+          ${svgRingChart(tmGoal.pct, 92, 9, ['#ff6a3d','#ffb020'])}
+          <div style="font-size:12px;font-weight:700">🏃 Koşu Bandı</div>
+          <div class="muted" style="font-size:11px">${tmGoal.done}/${tmGoal.goal} bu hafta <button class="icon-btn" style="font-size:12px;padding:2px 4px" onclick="openTreadmillGoalModal()">✎</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="stat-section">
+      <div class="stat-section-head"><h3>🏃 Koşu Bandı</h3></div>
+      <div class="tm-swipe">
+        <div class="tm-swipe-page">
+          <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
+            <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${Math.round(tmTotalMin)}</div><div class="stat-card-label">Toplam Dk</div></div>
+            <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${tmAvgSpeed}</div><div class="stat-card-label">Ort. km/h</div></div>
+            <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">%${tmAvgIncline}</div><div class="stat-card-label">Ort. Eğim</div></div>
+          </div>
+        </div>
+        <div class="tm-swipe-page">
+          <div class="muted" style="font-size:11px;margin-bottom:4px">Hız trendi (km/h, son 10)</div>
+          ${svgLineChart(tmSpeedTrend, '#ff6a3d')}
+        </div>
+      </div>
+      <div class="chart-labels" style="justify-content:center;gap:6px;margin-top:2px"><span>← kaydır →</span></div>
     </div>
     <div class="stat-grid">
       <div class="stat-card"><div class="stat-card-val">${state.workoutLog.length}</div><div class="stat-card-label">Toplam Antrenman</div></div>
@@ -1076,7 +1207,9 @@ function showDay(dateStr){
         <div class="log-ex">
           <div class="log-ex-name">${ex.name}</div>
           ${ex.notes ? `<div class="log-ex-note">📝 ${esc(ex.notes)}</div>` : ''}
-          <div class="log-ex-sets">${ex.sets.map((s,i)=>`<div>Set ${i+1} — ${s.kg}kg, ${s.reps} tekrar</div>`).join('')}</div>
+          <div class="log-ex-sets">${ex.type==='treadmill'
+            ? `${(ex.treadmill&&ex.treadmill.speed)||'-'} km/h · %${(ex.treadmill&&ex.treadmill.incline)||0} eğim · ${(ex.treadmill&&ex.treadmill.duration)||'-'} dk`
+            : ex.sets.map((s,i)=>`<div>Set ${i+1} — ${s.kg}kg, ${s.reps} tekrar</div>`).join('')}</div>
         </div>`).join('')}
     </div>`).join('') || '<div class="empty">Kayıt yok.</div>';
   document.getElementById('dayDetailModal').classList.add('show');
