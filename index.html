@@ -85,7 +85,7 @@ button{font-family:inherit;cursor:pointer}
 .ex-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 .ex-name{color:var(--accent);font-size:19px;font-weight:700;background:none;border:none;font-family:inherit;padding:0;width:100%}
 .ex-menu-btn{background:none;border:none;color:var(--muted);font-size:18px;padding:4px 8px}
-.ex-notes{width:100%;background:none;border:none;color:var(--muted);font-size:14px;margin-top:6px;padding:4px 0;font-family:inherit}
+.ex-notes{flex:1;min-width:0;background:none;border:none;color:var(--muted);font-size:14px;padding:4px 0;font-family:inherit;resize:vertical;min-height:36px}
 .ex-notes:focus{outline:none;color:var(--text)}
 .video-row{margin-top:10px}
 .video-thumb{display:inline-flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--accent);font-size:13px;font-weight:600}
@@ -143,6 +143,7 @@ button{font-family:inherit;cursor:pointer}
 .hist-modal{max-width:480px;max-height:80vh;overflow-y:auto}
 .log-ex{margin-bottom:14px}
 .log-ex-name{font-weight:700;color:var(--accent);font-size:14px;margin-bottom:4px}
+.log-ex-note{color:var(--muted);font-size:12px;font-style:italic;margin-bottom:6px;white-space:pre-wrap}
 .log-ex-sets{color:var(--muted);font-size:13px;line-height:1.7}
 
 /* ============ TAKVİM ============ */
@@ -687,6 +688,26 @@ function getPrevSets(name){
   if(!entries.length) return [];
   return entries[entries.length-1].exercises.find(ex=>ex.name===name).sets;
 }
+function getPrevNote(name){
+  const r = activeRoutine(); const today = todayStr();
+  const entries = state.workoutLog.filter(e=>e.routineId===r.id && e.date!==today && e.exercises.some(ex=>ex.name===name && ex.notes));
+  if(!entries.length) return '';
+  const ex = entries[entries.length-1].exercises.find(ex=>ex.name===name);
+  return (ex && ex.notes) ? ex.notes : '';
+}
+function insertPrevNote(exId){
+  const ex = activeRoutine().exercises.find(x=>x.id===exId);
+  const prev = getPrevNote(ex.name);
+  if(!prev) return;
+  const ta = document.querySelector('textarea.ex-notes[data-exid="'+exId+'"]');
+  if(!ta) return;
+  if(!ta.value.includes(prev)){
+    ta.value = prev + (ta.value ? ('\n'+ta.value) : '\n');
+  }
+  ex.notes = ta.value;
+  save();
+  ta.focus();
+}
 function exerciseInner(ex){
   const prevArr = getPrevSets(ex.name);
   const rows = ex.sets.map((s,i) => {
@@ -705,12 +726,17 @@ function exerciseInner(ex){
       ? `<div class="video-frame"><video id="vid-${ex.id}" muted playsinline preload="metadata" controls></video></div>
          <button class="video-thumb" style="margin-top:6px" onclick="openVideoModal('${ex.id}')">${ICONS.edit} Videoyu Değiştir</button>`
       : `<button class="video-thumb" onclick="openVideoModal('${ex.id}')">${ICONS.add} Video Ekle</button>`;
+  const prevNote = getPrevNote(ex.name);
+  const prevNoteBtn = prevNote ? `<button class="icon-btn" style="font-size:15px;flex-shrink:0" title="Geçen sefer: ${esc(prevNote)}" onclick="insertPrevNote('${ex.id}')">📋</button>` : '';
   return `
     <div class="ex-head">
       <input class="ex-name" value="${ex.name}" onclick="this.blur();openEditExercise('${ex.id}')" readonly>
       <button class="ex-menu-btn" onclick="deleteExercise('${ex.id}')">${ICONS.close}</button>
     </div>
-    <input class="ex-notes" placeholder="Buraya not ekleyin..." value="${ex.notes||''}" onchange="activeRoutine().exercises.find(x=>x.id==='${ex.id}').notes=this.value;save()">
+    <div style="display:flex;align-items:flex-start;gap:4px;margin-top:6px">
+      <textarea class="ex-notes" data-exid="${ex.id}" rows="2" placeholder="Buraya not ekleyin..." oninput="activeRoutine().exercises.find(x=>x.id==='${ex.id}').notes=this.value;save()">${esc(ex.notes||'')}</textarea>
+      ${prevNoteBtn}
+    </div>
     <div class="video-row">${videoBlock}</div>
     <div class="table">
       <div class="trow thead"><div>SET</div><div style="text-align:center">ÖNCEKİ</div><div style="text-align:center">KG</div><div style="text-align:center">TEKRAR</div><div></div><div></div></div>
@@ -766,7 +792,7 @@ function toggleSession(){
 }
 function logToday(){
   const r = activeRoutine(); const today = todayStr();
-  const entryExercises = r.exercises.filter(ex=>ex.sets.some(s=>s.done)).map(ex=>({name:ex.name, sets: ex.sets.filter(s=>s.done).map(s=>({kg:s.kg||0, reps:s.reps||0}))}));
+  const entryExercises = r.exercises.filter(ex=>ex.sets.some(s=>s.done)).map(ex=>({name:ex.name, notes: ex.notes||'', sets: ex.sets.filter(s=>s.done).map(s=>({kg:s.kg||0, reps:s.reps||0}))}));
   if(entryExercises.length===0) return false;
   const duration = Math.round(getElapsedMs()/1000);
   let entry = state.workoutLog.find(e=>e.date===today && e.routineId===r.id);
@@ -786,7 +812,7 @@ function finishWorkout(){
   if(!r || r.exercises.length===0){ backToHome(); return; }
   askConfirm('Antrenmanı bitirip kaydetmek istiyor musun?', ()=>{
     logToday();
-    r.exercises.forEach(ex=>{ ex.sets.forEach(s=>{ s.kg=''; s.reps=''; s.done=false; }); });
+    r.exercises.forEach(ex=>{ ex.sets.forEach(s=>{ s.kg=''; s.reps=''; s.done=false; }); ex.notes=''; });
     save();
     backToHome();
   }, 'Bitir');
@@ -985,6 +1011,7 @@ function showDay(dateStr){
       ${e.exercises.map(ex=>`
         <div class="log-ex">
           <div class="log-ex-name">${ex.name}</div>
+          ${ex.notes ? `<div class="log-ex-note">📝 ${esc(ex.notes)}</div>` : ''}
           <div class="log-ex-sets">${ex.sets.map((s,i)=>`<div>Set ${i+1} — ${s.kg}kg, ${s.reps} tekrar</div>`).join('')}</div>
         </div>`).join('')}
     </div>`).join('') || '<div class="empty">Kayıt yok.</div>';
