@@ -83,7 +83,7 @@ button{font-family:inherit;cursor:pointer}
 .superset-label{background:linear-gradient(135deg,#ff3d3d,#ffb020);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
 .superset-divider{height:1px;background:var(--border);margin:16px 0}
 .ex-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
-.ex-name{color:var(--accent);font-size:19px;font-weight:700;background:none;border:none;font-family:inherit;padding:0;width:100%}
+.ex-name{color:var(--accent);font-size:16px;font-weight:700;background:none;border:none;font-family:inherit;padding:0;width:100%}
 .ex-menu-btn{background:none;border:none;color:var(--muted);font-size:18px;padding:4px 8px}
 .ex-notes{flex:1;min-width:0;background:none;border:none;color:var(--muted);font-size:14px;padding:4px 0;font-family:inherit;resize:vertical;min-height:36px}
 .ex-notes:focus{outline:none;color:var(--text)}
@@ -248,13 +248,19 @@ button{font-family:inherit;cursor:pointer}
     <button class="small-btn" style="flex:1;padding:12px;font-size:14px" onclick="chooseExerciseType('normal')">Normal</button>
     <button class="small-btn" style="flex:1;padding:12px;font-size:14px" onclick="chooseExerciseType('superset')">⚡ Süper Set</button>
   </div>
+  <div id="exCountChoice" style="display:none">
+    <div class="hint" style="margin-top:0">Kaç hareket?</div>
+    <div class="row">
+      <button class="small-btn" style="flex:1;padding:12px;font-size:14px" onclick="chooseSupersetCount(2)">2</button>
+      <button class="small-btn" style="flex:1;padding:12px;font-size:14px" onclick="chooseSupersetCount(3)">3</button>
+      <button class="small-btn" style="flex:1;padding:12px;font-size:14px" onclick="chooseSupersetCount(4)">4</button>
+      <button class="small-btn" style="flex:1;padding:12px;font-size:14px" onclick="chooseSupersetCount(5)">5</button>
+    </div>
+  </div>
   <div id="exNormalFields" style="display:none">
     <input id="exNameInput" placeholder="Egzersiz adı (örn. Bench Press)">
   </div>
-  <div id="exSupersetFields" style="display:none">
-    <input id="exNameInput1" placeholder="1. hareket (örn. Bench Press)">
-    <input id="exNameInput2" placeholder="2. hareket (örn. Chest Fly)">
-  </div>
+  <div id="exSupersetFields" style="display:none"></div>
   <div class="row" id="exModalActions" style="display:none">
     <button class="cancel" onclick="closeModal('exModal')">İptal</button>
     <button class="save" onclick="saveExercise()">Kaydet</button>
@@ -536,7 +542,7 @@ function renderBottomNav(){
    ========================================================================= */
 function renderHome(){
   const el = document.getElementById('view-home');
-  const cards = state.routines.map(r=>{
+  const cards = state.routines.map((r,ri)=>{
     const logs = state.workoutLog.filter(e=>e.routineId===r.id).sort((a,b)=>a.date.localeCompare(b.date));
     const last = logs[logs.length-1];
     const sub = (last ? 'Son antrenman: '+last.date : 'Henüz yapılmadı') + ' · ' + r.exercises.length + ' egzersiz';
@@ -544,6 +550,8 @@ function renderHome(){
       <div class="routine-card-top">
         <div class="routine-card-name">${r.name}</div>
         <div class="routine-card-actions">
+          <button onclick="event.stopPropagation();moveRoutine('${r.id}',-1)" title="Yukarı taşı" style="${ri===0?'opacity:.3':''}">▲</button>
+          <button onclick="event.stopPropagation();moveRoutine('${r.id}',1)" title="Aşağı taşı" style="${ri===state.routines.length-1?'opacity:.3':''}">▼</button>
           <button onclick="event.stopPropagation();renameRoutine('${r.id}')" title="Düzenle">${ICONS.edit}</button>
           <button onclick="event.stopPropagation();deleteRoutine('${r.id}')" title="Sil">${ICONS.delete}</button>
         </div>
@@ -553,6 +561,13 @@ function renderHome(){
   }).join('');
   el.innerHTML = (cards || '<div class="empty">Henüz bir programın yok.<br>Aşağıdan ilk programını oluştur.</div>')
     + `<button class="add-tile" onclick="openRoutineModal('new')">${ICONS.add} Yeni Program</button>`;
+}
+function moveRoutine(id, dir){
+  const idx = state.routines.findIndex(r=>r.id===id);
+  const swapIdx = idx + dir;
+  if(idx<0 || swapIdx<0 || swapIdx>=state.routines.length) return;
+  const tmp = state.routines[idx]; state.routines[idx] = state.routines[swapIdx]; state.routines[swapIdx] = tmp;
+  save(); renderHome();
 }
 function openRoutineModal(mode, id){
   routineModalTargetId = mode==='rename' ? id : null;
@@ -592,6 +607,7 @@ function openAddExercise(){
   exModalMode = null;
   document.getElementById('exModalTitle').textContent = 'Egzersiz Ekle';
   document.getElementById('exTypeChoice').style.display = 'flex';
+  document.getElementById('exCountChoice').style.display = 'none';
   document.getElementById('exNormalFields').style.display = 'none';
   document.getElementById('exSupersetFields').style.display = 'none';
   document.getElementById('exModalActions').style.display = 'none';
@@ -600,15 +616,26 @@ function openAddExercise(){
 function chooseExerciseType(type){
   exModalMode = type;
   document.getElementById('exTypeChoice').style.display = 'none';
-  document.getElementById('exModalActions').style.display = 'flex';
   if(type==='normal'){
     document.getElementById('exNormalFields').style.display = 'block';
     document.getElementById('exNameInput').value = '';
+    document.getElementById('exModalActions').style.display = 'flex';
   } else {
-    document.getElementById('exSupersetFields').style.display = 'block';
-    document.getElementById('exNameInput1').value = '';
-    document.getElementById('exNameInput2').value = '';
+    document.getElementById('exCountChoice').style.display = 'block';
   }
+}
+function chooseSupersetCount(n){
+  const wrap = document.getElementById('exSupersetFields');
+  wrap.innerHTML = '';
+  for(let i=1;i<=n;i++){
+    const inp = document.createElement('input');
+    inp.className = 'ex-superset-input';
+    inp.placeholder = i+'. hareket (örn. ' + (i===1?'Bench Press':i===2?'Chest Fly':'Hareket '+i) + ')';
+    wrap.appendChild(inp);
+  }
+  document.getElementById('exCountChoice').style.display = 'none';
+  wrap.style.display = 'block';
+  document.getElementById('exModalActions').style.display = 'flex';
 }
 function openEditExercise(id){
   const ex = activeRoutine().exercises.find(x=>x.id===id);
@@ -616,6 +643,7 @@ function openEditExercise(id){
   activeExerciseId = id;
   document.getElementById('exModalTitle').textContent = 'Egzersiz Adını Düzenle';
   document.getElementById('exTypeChoice').style.display = 'none';
+  document.getElementById('exCountChoice').style.display = 'none';
   document.getElementById('exSupersetFields').style.display = 'none';
   document.getElementById('exNormalFields').style.display = 'block';
   document.getElementById('exModalActions').style.display = 'flex';
@@ -629,16 +657,17 @@ function saveExercise(){
     if(!name) return;
     r.exercises.find(x=>x.id===activeExerciseId).name = name;
   } else if(exModalMode==='superset'){
-    const n1 = document.getElementById('exNameInput1').value.trim();
-    const n2 = document.getElementById('exNameInput2').value.trim();
-    if(!n1 || !n2) return;
+    const inputs = [...document.querySelectorAll('#exSupersetFields .ex-superset-input')];
+    const names = inputs.map(i=>i.value.trim());
+    if(names.some(n=>!n)) return;
     const sid = uid();
-    r.exercises.push({ id: uid(), name:n1, notes:'', youtube:'', hasLocalVideo:false, sets:[{kg:'',reps:'',done:false}], supersetId: sid });
-    r.exercises.push({ id: uid(), name:n2, notes:'', youtube:'', hasLocalVideo:false, sets:[{kg:'',reps:'',done:false}], supersetId: sid });
+    names.forEach(n=>{
+      r.exercises.push({ id: uid(), name:n, notes:'', youtube:'', sets:[{kg:'',reps:'',done:false}], supersetId: sid });
+    });
   } else {
     const name = document.getElementById('exNameInput').value.trim();
     if(!name) return;
-    r.exercises.push({ id: uid(), name, notes:'', youtube:'', hasLocalVideo:false, sets:[{kg:'',reps:'',done:false}] });
+    r.exercises.push({ id: uid(), name, notes:'', youtube:'', sets:[{kg:'',reps:'',done:false}] });
   }
   save(); closeModal('exModal'); render();
 }
@@ -699,14 +728,14 @@ function updateStats(){
   document.getElementById('setCount').textContent = sets;
 }
 function getPrevSets(name){
-  const r = activeRoutine(); const today = todayStr();
-  const entries = state.workoutLog.filter(e=>e.routineId===r.id && e.date!==today && e.exercises.some(ex=>ex.name===name));
+  const r = activeRoutine();
+  const entries = state.workoutLog.filter(e=>e.routineId===r.id && e.exercises.some(ex=>ex.name===name));
   if(!entries.length) return [];
   return entries[entries.length-1].exercises.find(ex=>ex.name===name).sets;
 }
 function getPrevNote(name){
-  const r = activeRoutine(); const today = todayStr();
-  const entries = state.workoutLog.filter(e=>e.routineId===r.id && e.date!==today && e.exercises.some(ex=>ex.name===name && ex.notes));
+  const r = activeRoutine();
+  const entries = state.workoutLog.filter(e=>e.routineId===r.id && e.exercises.some(ex=>ex.name===name && ex.notes));
   if(!entries.length) return '';
   const ex = entries[entries.length-1].exercises.find(ex=>ex.name===name);
   return (ex && ex.notes) ? ex.notes : '';
@@ -761,30 +790,49 @@ function exerciseInner(ex){
     </div>
     <button class="add-set" onclick="addSet('${ex.id}')">+ Set Ekle</button>`;
 }
+function getExerciseGroups(exercises){
+  const groups = [];
+  let i = 0;
+  while(i < exercises.length){
+    const ex = exercises[i];
+    if(ex.supersetId){
+      const items = [ex]; let j = i+1;
+      while(j < exercises.length && exercises[j].supersetId === ex.supersetId){ items.push(exercises[j]); j++; }
+      groups.push(items);
+      i = j;
+    } else {
+      groups.push([ex]);
+      i += 1;
+    }
+  }
+  return groups;
+}
+function moveExerciseGroup(anchorId, dir){
+  const r = activeRoutine();
+  const groups = getExerciseGroups(r.exercises);
+  const idx = groups.findIndex(g=>g[0].id===anchorId);
+  const swapIdx = idx + dir;
+  if(idx<0 || swapIdx<0 || swapIdx>=groups.length) return;
+  const tmp = groups[idx]; groups[idx] = groups[swapIdx]; groups[swapIdx] = tmp;
+  r.exercises = groups.flat();
+  save(); render();
+}
 function render(){
   const r = activeRoutine();
   const list = document.getElementById('exerciseList');
   if(!r || r.exercises.length===0){ list.innerHTML = '<div class="empty">Bu programda henüz egzersiz yok.<br>Aşağıdaki butondan ekle.</div>'; updateStats(); return; }
-  const groups = [];
-  let i = 0;
-  while(i < r.exercises.length){
-    const ex = r.exercises[i];
-    const next = r.exercises[i+1];
-    if(ex.supersetId && next && next.supersetId===ex.supersetId){
-      groups.push({type:'superset', a:ex, b:next});
-      i += 2;
-    } else {
-      groups.push({type:'single', ex});
-      i += 1;
-    }
-  }
-  list.innerHTML = groups.map(g=>{
-    if(g.type==='single') return `<div class="exercise">${exerciseInner(g.ex)}</div>`;
+  const groups = getExerciseGroups(r.exercises);
+  list.innerHTML = groups.map((items, gi)=>{
+    const anchorId = items[0].id;
+    const moveBtns = `<div style="display:flex;gap:4px;justify-content:flex-end;margin-bottom:6px">
+      <button class="icon-btn" style="font-size:14px;padding:3px 7px;${gi===0?'opacity:.3':''}" onclick="moveExerciseGroup('${anchorId}',-1)">▲</button>
+      <button class="icon-btn" style="font-size:14px;padding:3px 7px;${gi===groups.length-1?'opacity:.3':''}" onclick="moveExerciseGroup('${anchorId}',1)">▼</button>
+    </div>`;
+    if(items.length===1) return `<div class="exercise">${moveBtns}${exerciseInner(items[0])}</div>`;
     return `<div class="exercise superset">
+      ${moveBtns}
       <div class="superset-label">⚡ Süper Set</div>
-      ${exerciseInner(g.a)}
-      <div class="superset-divider"></div>
-      ${exerciseInner(g.b)}
+      ${items.map((ex,ii)=>ii===0?exerciseInner(ex):`<div class="superset-divider"></div>${exerciseInner(ex)}`).join('')}
     </div>`;
   }).join('');
   updateStats();
