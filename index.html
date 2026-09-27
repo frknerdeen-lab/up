@@ -80,19 +80,24 @@ button{font-family:inherit;cursor:pointer}
 .routine-card-sub{color:var(--muted);font-size:13px;margin-top:4px}
 .routine-card.off-day{opacity:.55;cursor:default}
 .routine-card.off-day:hover{border-color:var(--border);box-shadow:0 8px 28px rgba(0,0,0,.35)}
-.add-tile{width:100%;background:var(--card);border:1.5px dashed var(--border);color:var(--accent);border-radius:14px;padding:16px;font-size:15px;font-weight:700;margin-bottom:12px}
+.add-tile{width:44px;height:44px;flex-shrink:0;background:var(--card);border:1.5px dashed var(--accent);color:var(--accent);border-radius:12px;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-left:auto;margin-top:14px}
 .section-label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin:4px 0 10px;font-weight:700}
-.add-tile:hover{border-color:var(--accent);box-shadow:var(--glow)}
-.week-accordion-header{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:12px 8px 12px 16px;margin-bottom:12px}
+.add-tile:hover{box-shadow:var(--glow);background:rgba(239,43,63,.08)}
+.add-tile .ic-plus,.add-exercise .ic-plus{width:18px;height:18px;margin:0}
+.week-blocks-wrap{display:flex;flex-direction:column}
+.week-block{margin-bottom:14px}
+.week-accordion-header{width:100%;display:flex;align-items:center;justify-content:space-between;gap:4px;background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:12px 8px 12px 16px;margin-bottom:12px}
 .week-accordion-header:focus-within,.week-accordion-header:hover{border-color:var(--accent)}
 .week-title-input{background:transparent;border:none;color:var(--text);font-size:15px;font-weight:700;flex:1;min-width:0;padding:4px 0}
 .week-title-input:focus{outline:none}
 .week-title-input::placeholder{color:var(--muted);font-weight:700}
+.week-delete-btn{background:none;border:none;color:var(--muted);padding:6px;border-radius:8px;flex-shrink:0;font-size:14px}
+.week-delete-btn:hover{background:var(--card2);color:var(--danger)}
 .chevron-btn{background:none;border:none;color:var(--accent);padding:6px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;cursor:pointer}
 .chevron-btn:hover{background:var(--card2)}
 .chevron{display:inline-block;transition:transform .2s ease;font-size:14px}
 .chevron.open{transform:rotate(180deg)}
-.week-accordion-body{display:flex;flex-direction:column;gap:12px;margin-bottom:4px}
+.week-accordion-body{display:flex;flex-direction:column;gap:12px;margin-bottom:0}
 .day-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .day-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.3px;font-weight:700}
 .day-close-btn{background:none;border:none;color:var(--muted);font-size:15px;padding:4px 6px;border-radius:6px;flex-shrink:0}
@@ -152,8 +157,8 @@ button{font-family:inherit;cursor:pointer}
 .tm-grid input{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 4px;text-align:center;font-size:14px;font-family:inherit}
 .tm-grid input:focus{outline:none;border-color:var(--accent)}
 .add-set:hover{background:#20212a}
-.add-exercise{width:100%;background:var(--card);border:1.5px dashed var(--border);color:var(--accent);border-radius:14px;padding:16px;font-size:15px;font-weight:700}
-.add-exercise:hover{border-color:var(--accent)}
+.add-exercise{width:44px;height:44px;flex-shrink:0;background:var(--card);border:1.5px dashed var(--accent);color:var(--accent);border-radius:12px;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-left:auto}
+.add-exercise:hover{box-shadow:var(--glow);background:rgba(239,43,63,.08)}
 .del-set{background:none;border:none;color:var(--muted);font-size:18px;padding:2px;line-height:1}
 .del-set:hover{color:var(--danger)}
 
@@ -283,7 +288,7 @@ button{font-family:inherit;cursor:pointer}
     <div class="stat"><div class="label">Set</div><div class="value" id="setCount">0</div></div>
   </div>
   <div class="container" id="exerciseList"></div>
-  <div class="container"><button class="add-exercise" onclick="openAddExercise()"><span class="ic-plus"></span>Egzersiz Ekle</button></div>
+  <div class="container"><button class="add-exercise" onclick="openAddExercise()" title="Egzersiz Ekle"><span class="ic-plus"></span></button></div>
 </div>
 
 <div id="view-stats" class="view container" style="display:none"></div>
@@ -462,12 +467,12 @@ function normalizeState(s){
     const legacyPlan = (Array.isArray(s.weekPlan) && s.weekPlan.length===7)
       ? s.weekPlan.map(v=> (v==='PENDING'||v==='EMPTY') ? null : (v===null ? 'OFF' : v))
       : new Array(7).fill(null);
-    s.weekBlocks = [{ id: uid(), name: s.weekSectionName || 'Haftalık Antrenman', open: true, plan: legacyPlan }];
+    s.weekBlocks = [{ id: uid(), name: s.weekSectionName || 'Antrenman Seti', open: true, plan: legacyPlan }];
   }
   delete s.weekPlan; delete s.weekMapped; delete s.weekSectionName;
   s.weekBlocks.forEach(b=>{
     if(!b.id) b.id = uid();
-    if(typeof b.name !== 'string' || !b.name) b.name = 'Haftalık Antrenman';
+    if(typeof b.name !== 'string' || !b.name) b.name = 'Antrenman Seti';
     if(typeof b.open !== 'boolean') b.open = true;
     if(!Array.isArray(b.plan) || b.plan.length!==7) b.plan = new Array(7).fill(null);
   });
@@ -679,19 +684,27 @@ function renderOneWeekBlock(block){
       <div class="routine-card-sub" style="cursor:pointer" onclick="openRoutine('${r.id}')">${sub} · Egzersizleri düzenle →</div>
     </div>`;
   }).join('');
-  return `
+  return `<div class="week-block">
     <div class="week-accordion-header">
-      <input class="week-title-input" value="${esc(block.name)}" placeholder="Haftalık Antrenman" onclick="event.stopPropagation()" oninput="renameWeekSection('${block.id}', this.value)">
+      <input class="week-title-input" value="${esc(block.name)}" placeholder="Antrenman Seti" onclick="event.stopPropagation()" oninput="renameWeekSection('${block.id}', this.value)">
+      <button class="week-delete-btn" onclick="event.stopPropagation();deleteWeekBlock('${block.id}')" title="Antrenman setini sil">${ICONS.close}</button>
       <button class="chevron-btn" onclick="toggleWeekSection('${block.id}')"><span class="chevron ${block.open?'open':''}">▾</span></button>
     </div>
-    <div class="week-accordion-body" style="${block.open?'':'display:none'}">${dayCards}</div>`;
+    <div class="week-accordion-body" style="${block.open?'':'display:none'}">${dayCards}</div>
+  </div>`;
 }
 function renderWeekCards(el){
-  const blocksHtml = state.weekBlocks.map(renderOneWeekBlock).join('<div style="height:14px"></div>');
-  el.innerHTML = blocksHtml + `<button class="add-tile" onclick="addWeekBlock()">${ICONS.add} Antrenman Ekle</button>`;
+  const blocksHtml = state.weekBlocks.map(renderOneWeekBlock).join('');
+  el.innerHTML = `<div class="week-blocks-wrap">${blocksHtml}</div><button class="add-tile" onclick="addWeekBlock()" title="Antrenman Ekle">${ICONS.add}</button>`;
+}
+function deleteWeekBlock(blockId){
+  askConfirm('Bu antrenman setini silmek istediğine emin misin? İçindeki programların egzersiz kayıtları silinmez, sadece bu gruplamadan çıkar.', ()=>{
+    state.weekBlocks = state.weekBlocks.filter(b=>b.id!==blockId);
+    save(); renderHome();
+  });
 }
 function addWeekBlock(){
-  state.weekBlocks.push({ id: uid(), name: 'Haftalık Antrenman', open: true, plan: new Array(7).fill(null) });
+  state.weekBlocks.push({ id: uid(), name: 'Antrenman Seti', open: true, plan: new Array(7).fill(null) });
   save(); renderHome();
 }
 function toggleWeekSection(blockId){
@@ -717,7 +730,7 @@ function chooseDayOff(blockId, i){
 function renameWeekSection(blockId, value){
   const b = state.weekBlocks.find(x=>x.id===blockId);
   if(!b) return;
-  b.name = value || 'Haftalık Antrenman';
+  b.name = value || 'Antrenman Seti';
   save();
 }
 function renameRoutineInline(id, value){
@@ -1212,69 +1225,90 @@ function isActiveDay(dateStr){
   const hasHabit = Object.values(habitsToday).some(v=>v);
   return hasWorkout || hasHabit;
 }
-function computeWeightRoutineCoverage(){
+let statsBlockId = null;
+function getBlockRoutineIds(blockId){
+  const b = state.weekBlocks.find(x=>x.id===blockId);
+  if(!b) return [];
+  return b.plan.filter(v=>v && v!=='OFF');
+}
+function computeWeightRoutineCoverage(routineIds){
   const weekDates = getWeekDates(todayStr());
-  const weightRoutines = state.routines.filter(r=>r.exercises.some(ex=>ex.type!=='treadmill'));
+  const weightRoutines = state.routines.filter(r=>routineIds.includes(r.id) && r.exercises.some(ex=>ex.type!=='treadmill'));
   if(weightRoutines.length===0) return {pct:0, done:0, total:0};
   const doneIds = new Set();
   state.workoutLog.forEach(e=>{
-    if(weekDates.includes(e.date) && e.exercises.some(ex=>ex.type!=='treadmill')) doneIds.add(e.routineId);
+    if(weekDates.includes(e.date) && routineIds.includes(e.routineId) && e.exercises.some(ex=>ex.type!=='treadmill')) doneIds.add(e.routineId);
   });
   const done = weightRoutines.filter(r=>doneIds.has(r.id)).length;
   return { pct: Math.round((done/weightRoutines.length)*100), done, total: weightRoutines.length };
 }
-function computeTreadmillGoal(){
+function computeTreadmillGoal(routineIds){
   const weekDates = getWeekDates(todayStr());
-  // Hedef, içinde koşu bandı egzersizi olan program sayısından geliyor
-  // (Antrenman sekmesindeki programlar taranıyor) - manuel giriş yok.
-  const treadmillRoutines = state.routines.filter(r=>r.exercises.some(ex=>ex.type==='treadmill'));
+  // Hedef, seçili antrenman setindeki koşu bandı içeren program sayısından geliyor
+  const treadmillRoutines = state.routines.filter(r=>routineIds.includes(r.id) && r.exercises.some(ex=>ex.type==='treadmill'));
   if(treadmillRoutines.length===0) return { pct:0, done:0, goal:0 };
   const doneIds = new Set();
   state.workoutLog.forEach(e=>{
-    if(weekDates.includes(e.date) && e.exercises.some(ex=>ex.type==='treadmill')) doneIds.add(e.routineId);
+    if(weekDates.includes(e.date) && routineIds.includes(e.routineId) && e.exercises.some(ex=>ex.type==='treadmill')) doneIds.add(e.routineId);
   });
   const done = treadmillRoutines.filter(r=>doneIds.has(r.id)).length;
   return { pct: Math.round((done/treadmillRoutines.length)*100), done, goal: treadmillRoutines.length };
 }
-function getTreadmillLogs(){
+function getTreadmillLogs(routineIds){
   const logs = [];
-  state.workoutLog.forEach(e=>{ e.exercises.forEach(ex=>{ if(ex.type==='treadmill' && ex.treadmill){ logs.push({date:e.date, ...ex.treadmill}); } }); });
+  state.workoutLog.forEach(e=>{ if(!routineIds.includes(e.routineId)) return; e.exercises.forEach(ex=>{ if(ex.type==='treadmill' && ex.treadmill){ logs.push({date:e.date, ...ex.treadmill}); } }); });
   return logs;
 }
-function computeWeeklyVolume(weeks){
+function computeWeeklyVolume(routineIds, weeks){
   weeks = weeks||8; const map={};
-  state.workoutLog.forEach(e=>{ const wk=isoWeekKey(e.date); const vol=e.exercises.reduce((a,ex)=>a+ex.sets.reduce((b,s)=>b+(parseFloat(s.kg)||0)*(parseFloat(s.reps)||0),0),0); map[wk]=(map[wk]||0)+vol; });
+  state.workoutLog.forEach(e=>{ if(!routineIds.includes(e.routineId)) return; const wk=isoWeekKey(e.date); const vol=e.exercises.reduce((a,ex)=>a+ex.sets.reduce((b,s)=>b+(parseFloat(s.kg)||0)*(parseFloat(s.reps)||0),0),0); map[wk]=(map[wk]||0)+vol; });
   const keys = Object.keys(map).sort().slice(-weeks);
   return { labels: keys, values: keys.map(k=>Math.round(map[k])) };
 }
-function computeConsistency(weeksBack){
+function computeConsistency(routineIds, weeksBack){
   weeksBack = weeksBack||6; const map={};
-  state.workoutLog.forEach(e=>{ const wk=isoWeekKey(e.date); map[wk]=map[wk]||new Set(); map[wk].add(e.date); });
+  state.workoutLog.forEach(e=>{ if(!routineIds.includes(e.routineId)) return; const wk=isoWeekKey(e.date); map[wk]=map[wk]||new Set(); map[wk].add(e.date); });
   const keys = Object.keys(map).sort().slice(-weeksBack);
   if(keys.length===0) return '0';
   const total = keys.reduce((a,k)=>a+map[k].size,0);
   return (total/keys.length).toFixed(1);
 }
+function onStatsBlockChange(){
+  statsBlockId = document.getElementById('statsBlockSelect').value;
+  renderStats();
+}
 function renderStats(){
-  const totalVolume = state.workoutLog.reduce((a,e)=>a+e.exercises.reduce((b,ex)=>b+ex.sets.reduce((c,s)=>c+(parseFloat(s.kg)||0)*(parseFloat(s.reps)||0),0),0),0);
-  const totalSets = state.workoutLog.reduce((a,e)=>a+e.exercises.reduce((b,ex)=>b+ex.sets.length,0),0);
-  const totalReps = state.workoutLog.reduce((a,e)=>a+e.exercises.reduce((b,ex)=>b+ex.sets.reduce((c,s)=>c+(parseFloat(s.reps)||0),0),0),0);
-  const durations = state.workoutLog.filter(e=>e.durationSec).map(e=>e.durationSec);
+  if(!state.weekBlocks.length){
+    document.getElementById('view-stats').innerHTML = `<div class="stat-section"><div class="muted">Önce Antrenman sekmesinden bir antrenman seti oluştur.</div></div>`;
+    return;
+  }
+  if(!statsBlockId || !state.weekBlocks.some(b=>b.id===statsBlockId)) statsBlockId = state.weekBlocks[0].id;
+  const routineIds = getBlockRoutineIds(statsBlockId);
+
+  const filteredLog = state.workoutLog.filter(e=>routineIds.includes(e.routineId));
+  const totalVolume = filteredLog.reduce((a,e)=>a+e.exercises.reduce((b,ex)=>b+ex.sets.reduce((c,s)=>c+(parseFloat(s.kg)||0)*(parseFloat(s.reps)||0),0),0),0);
+  const totalSets = filteredLog.reduce((a,e)=>a+e.exercises.reduce((b,ex)=>b+ex.sets.length,0),0);
+  const totalReps = filteredLog.reduce((a,e)=>a+e.exercises.reduce((b,ex)=>b+ex.sets.reduce((c,s)=>c+(parseFloat(s.reps)||0),0),0),0);
+  const durations = filteredLog.filter(e=>e.durationSec).map(e=>e.durationSec);
   const avgDur = durations.length? Math.round(durations.reduce((a,b)=>a+b,0)/durations.length/60) : 0;
-  const consistency = computeConsistency();
-  const wk = computeWeeklyVolume();
-  const durTrend = state.workoutLog.filter(e=>e.durationSec).slice(-10).map(e=>Math.round(e.durationSec/60));
-  const thisWeekDays = getWeekDates(todayStr()).filter(isActiveDay).length;
-  const weekPct = Math.round((thisWeekDays/7)*100);
-  const weightCov = computeWeightRoutineCoverage();
-  const tmGoal = computeTreadmillGoal();
-  const tmLogs = getTreadmillLogs();
+  const consistency = computeConsistency(routineIds);
+  const wk = computeWeeklyVolume(routineIds);
+  const durTrend = filteredLog.filter(e=>e.durationSec).slice(-10).map(e=>Math.round(e.durationSec/60));
+  const weightCov = computeWeightRoutineCoverage(routineIds);
+  const tmGoal = computeTreadmillGoal(routineIds);
+  const tmLogs = getTreadmillLogs(routineIds);
   const tmTotalMin = tmLogs.reduce((a,t)=>a+(parseFloat(t.duration)||0),0);
   const tmAvgSpeed = tmLogs.length ? (tmLogs.reduce((a,t)=>a+(parseFloat(t.speed)||0),0)/tmLogs.length).toFixed(1) : '-';
   const tmAvgIncline = tmLogs.length ? (tmLogs.reduce((a,t)=>a+(parseFloat(t.incline)||0),0)/tmLogs.length).toFixed(1) : '-';
   const tmSpeedTrend = tmLogs.slice(-10).map(t=>parseFloat(t.speed)||0);
 
   document.getElementById('view-stats').innerHTML = `
+    <div class="stat-section">
+      <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px">Antrenman Seti</div>
+      <select id="statsBlockSelect" class="theme-select" onchange="onStatsBlockChange()">
+        ${state.weekBlocks.map(b=>`<option value="${b.id}" ${b.id===statsBlockId?'selected':''}>${esc(b.name)}</option>`).join('')}
+      </select>
+    </div>
     <div class="stat-section">
       <h3 style="margin-bottom:14px">Haftalık Hedefler</h3>
       <div style="display:flex;gap:10px">
@@ -1301,7 +1335,7 @@ function renderStats(){
       ${svgLineChart(tmSpeedTrend, '#ff6a3d')}
     </div>
     <div class="stat-grid">
-      <div class="stat-card"><div class="stat-card-val">${state.workoutLog.length}</div><div class="stat-card-label">Toplam Antrenman</div></div>
+      <div class="stat-card"><div class="stat-card-val">${filteredLog.length}</div><div class="stat-card-label">Toplam Antrenman</div></div>
       <div class="stat-card"><div class="stat-card-val">${Math.round(totalVolume).toLocaleString('tr-TR')}</div><div class="stat-card-label">Toplam Hacim (kg)</div></div>
       <div class="stat-card"><div class="stat-card-val">${totalSets}</div><div class="stat-card-label">Toplam Set</div></div>
       <div class="stat-card"><div class="stat-card-val">${totalReps}</div><div class="stat-card-label">Toplam Tekrar</div></div>
@@ -1544,7 +1578,7 @@ function renderDaily(){
     ${rows || '<div class="empty">Henüz alışkanlık eklemedin.</div>'}
     <div class="section-label" style="margin-top:22px">Notlar</div>
     ${noteCards || '<div class="empty">Henüz not eklemedin.</div>'}
-    <button class="add-tile" onclick="openAddTypeModal()">${ICONS.add} Ekle</button>`;
+    <button class="add-tile" onclick="openAddTypeModal()" title="Ekle">${ICONS.add}</button>`;
 }
 function openAddTypeModal(){ document.getElementById('addTypeModal').classList.add('show'); }
 function toggleHabit(id){
