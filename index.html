@@ -96,6 +96,10 @@ button{font-family:inherit;cursor:pointer}
 .ex-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 .ex-name{color:var(--accent);font-size:16px;font-weight:700;background:none;border:none;font-family:inherit;padding:0;width:100%}
 .ex-menu-btn{background:none;border:none;color:var(--muted);font-size:18px;padding:4px 8px}
+.move-btns{display:flex;flex-direction:column;gap:1px;flex-shrink:0}
+.move-btn{background:none;border:none;color:var(--muted);font-size:10px;line-height:1;padding:2px 4px;border-radius:4px}
+.move-btn:hover{background:var(--card2);color:var(--accent)}
+.move-btn.disabled{opacity:.25;pointer-events:none}
 .ex-notes{flex:1;min-width:0;background:none;border:none;color:var(--muted);font-size:14px;padding:4px 0;font-family:inherit;resize:vertical;min-height:36px}
 .ex-notes:focus{outline:none;color:var(--text)}
 .video-row{margin-top:10px}
@@ -117,7 +121,7 @@ button{font-family:inherit;cursor:pointer}
 .check.done{background:var(--done);border-color:var(--done-border);color:var(--green)}
 .add-set{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:11px;font-size:14px;font-weight:600;margin-top:4px}
 .tm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.tm-label{display:block;color:var(--muted);font-size:11px;margin-bottom:4px}
+.tm-label{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px}
 .tm-grid input{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 4px;text-align:center;font-size:14px;font-family:inherit}
 .tm-grid input:focus{outline:none;border-color:var(--accent)}
 .add-set:hover{background:#20212a}
@@ -373,8 +377,8 @@ button{font-family:inherit;cursor:pointer}
 <!-- Ekleme türü seç -->
 <div class="modal-bg" id="addTypeModal"><div class="modal">
   <h3>Ne eklemek istersin?</h3>
-  <button class="small-btn" style="width:100%;margin-bottom:8px;padding:12px;font-size:14px" onclick="closeModal('addTypeModal');openHabitModal()">✓ Alışkanlık (Checklist)</button>
-  <button class="small-btn" style="width:100%;padding:12px;font-size:14px" onclick="closeModal('addTypeModal');openNoteNew()">📝 Not</button>
+  <button class="small-btn" style="width:100%;margin-bottom:8px;padding:12px;font-size:14px" onclick="closeModal('addTypeModal');openHabitModal()">Alışkanlık</button>
+  <button class="small-btn" style="width:100%;padding:12px;font-size:14px" onclick="closeModal('addTypeModal');openNoteNew()">Not</button>
 </div></div>
 
 <script>
@@ -393,7 +397,7 @@ function fmtShortDate(dateStr){
   return `${parts[2]} ${TR_MONTHS_SHORT[parts[1]-1]}`;
 }
 const MEASURE_TYPES = [
-  {key:'Kilo', unit:'kg'}, {key:'Boy', unit:'cm'}, {key:'Bel', unit:'cm'}, {key:'Kalça', unit:'cm'},
+  {key:'Kilo', unit:'kg'}, {key:'Bel', unit:'cm'}, {key:'Kalça', unit:'cm'},
   {key:'Göğüs', unit:'cm'}, {key:'Sağ Kol', unit:'cm'}, {key:'Sol Kol', unit:'cm'}, {key:'Bacak', unit:'cm'}, {key:'Omuz', unit:'cm'}
 ];
 
@@ -806,12 +810,14 @@ function insertPrevNote(exId){
   save();
   ta.focus();
 }
-function exerciseInner(ex){
+function exerciseInner(ex, moveHtml){
+  moveHtml = moveHtml || '';
   if(ex.type==='treadmill'){
     const t = ex.treadmill || {speed:'',incline:'',duration:''};
     return `
       <div class="ex-head">
         <div class="ex-name" style="cursor:default">${esc(ex.name)}</div>
+        ${moveHtml}
         <button class="ex-menu-btn" onclick="deleteExercise('${ex.id}')">${ICONS.close}</button>
       </div>
       <textarea class="ex-notes" data-exid="${ex.id}" rows="2" placeholder="Buraya not ekleyin..." style="margin-top:6px" oninput="activeRoutine().exercises.find(x=>x.id==='${ex.id}').notes=this.value;save()">${esc(ex.notes||'')}</textarea>
@@ -834,6 +840,7 @@ function exerciseInner(ex){
   const head = `
     <div class="ex-head">
       <input class="ex-name" value="${ex.name}" onclick="this.blur();openEditExercise('${ex.id}')" readonly>
+      ${moveHtml}
       <button class="ex-menu-btn" onclick="deleteExercise('${ex.id}')">${ICONS.close}</button>
     </div>
     <div style="display:flex;align-items:flex-start;gap:4px;margin-top:6px">
@@ -910,15 +917,14 @@ function render(){
   const groups = getExerciseGroups(r.exercises);
   list.innerHTML = groups.map((items, gi)=>{
     const anchorId = items[0].id;
-    const moveBtns = `<div style="display:flex;gap:4px;justify-content:flex-end;margin-bottom:6px">
-      <button class="icon-btn" style="font-size:14px;padding:3px 7px;${gi===0?'opacity:.3':''}" onclick="moveExerciseGroup('${anchorId}',-1)">▲</button>
-      <button class="icon-btn" style="font-size:14px;padding:3px 7px;${gi===groups.length-1?'opacity:.3':''}" onclick="moveExerciseGroup('${anchorId}',1)">▼</button>
+    const moveHtml = `<div class="move-btns">
+      <button class="move-btn ${gi===0?'disabled':''}" onclick="moveExerciseGroup('${anchorId}',-1)">▲</button>
+      <button class="move-btn ${gi===groups.length-1?'disabled':''}" onclick="moveExerciseGroup('${anchorId}',1)">▼</button>
     </div>`;
-    if(items.length===1) return `<div class="exercise${items[0].type==='treadmill'?' treadmill-ex':''}">${moveBtns}${exerciseInner(items[0])}</div>`;
+    if(items.length===1) return `<div class="exercise${items[0].type==='treadmill'?' treadmill-ex':''}">${exerciseInner(items[0], moveHtml)}</div>`;
     return `<div class="exercise superset">
-      ${moveBtns}
       <div class="superset-label">⚡ Süper Set</div>
-      ${items.map((ex,ii)=>ii===0?exerciseInner(ex):`<div class="superset-divider"></div>${exerciseInner(ex)}`).join('')}
+      ${items.map((ex,ii)=>ii===0?exerciseInner(ex, moveHtml):`<div class="superset-divider"></div>${exerciseInner(ex)}`).join('')}
     </div>`;
   }).join('');
   updateStats();
@@ -1198,10 +1204,10 @@ function renderStats(){
     <div class="stat-section">
       <div class="stat-section-head"><h3>Ölçümler</h3></div>
       <table class="measure-table" id="measureTable"></table>
-      <button class="small-btn" style="margin-top:10px;width:100%" onclick="saveAllMeasurements(event)">${ICONS.save} Tümünü Kaydet</button>
+      <button class="small-btn" style="margin-top:10px;width:100%" onclick="saveAllMeasurements(event)">Kaydet</button>
       <div style="margin-top:18px">
         <select id="measureTypeSelect" class="theme-select" onchange="renderMeasureChart()"></select>
-        <div id="measureChart"></div>
+        <div id="measureChart" style="margin-top:18px"></div>
         <div id="measureList"></div>
       </div>
     </div>`;
@@ -1413,9 +1419,9 @@ function renderDaily(){
     </div>`;
   }).join('');
   document.getElementById('view-daily').innerHTML = `
-    <div class="section-label">✓ Alışkanlıklar</div>
+    <div class="section-label">Alışkanlıklar</div>
     ${rows || '<div class="empty">Henüz alışkanlık eklemedin.</div>'}
-    <div class="section-label" style="margin-top:22px">${ICONS.notesTab} Notlar</div>
+    <div class="section-label" style="margin-top:22px">Notlar</div>
     ${noteCards || '<div class="empty">Henüz not eklemedin.</div>'}
     <button class="add-tile" onclick="openAddTypeModal()">${ICONS.add} Ekle</button>`;
 }
