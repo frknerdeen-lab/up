@@ -30,15 +30,16 @@
 ::-webkit-scrollbar-corner{background:transparent}
 input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 input[type=number]{-moz-appearance:textfield;appearance:textfield}
-html{background:var(--bg);overflow-x:clip;max-width:100vw}
+html{background:var(--bg);overflow-x:clip;max-width:100vw;height:100%;overflow-y:hidden}
 body{overflow-x:clip;max-width:100vw}
-body{margin:0;min-height:100vh;background:
+body{margin:0;height:100%;overflow-y:hidden;display:flex;flex-direction:column;background:
   radial-gradient(circle at 102% 102%, rgba(255,110,90,.38) 0%, rgba(255,70,60,.13) 20%, transparent 48%),
   radial-gradient(circle at -2% -5%, rgba(255,70,90,.42) 0%, rgba(220,40,60,.14) 20%, transparent 50%),
   radial-gradient(circle at 68% 12%, rgba(180,50,70,.28) 0%, rgba(140,30,50,.09) 22%, transparent 52%),
   var(--bg);
   background-attachment:fixed;background-repeat:no-repeat;background-size:100% 100%;
-  color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding-bottom:150px}
+  color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+#appScroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:150px}
 button{font-family:inherit;cursor:pointer}
 .exercise,.stat-card,.stat-section,.routine-card,.habit-row,.modal{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 8px 28px rgba(0,0,0,.35)}
 .container{padding:14px 12px;max-width:640px;margin:0 auto}
@@ -46,7 +47,7 @@ button{font-family:inherit;cursor:pointer}
 .muted{color:var(--muted);font-weight:400}
 
 /* ============ TOPBAR ============ */
-#topbar{position:sticky;top:0;background:rgba(5,6,11,.85);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;flex-direction:column;gap:10px;z-index:10}
+#topbar{position:relative;flex-shrink:0;background:rgba(5,6,11,.85);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;flex-direction:column;gap:10px;z-index:10}
 #topbar h1{font-size:19px;margin:0;font-weight:700;display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .topbar-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
 .topbar-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -240,7 +241,9 @@ button{font-family:inherit;cursor:pointer}
 .cal-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;background:var(--card2);font-size:13px;cursor:pointer;position:relative;min-width:0;overflow:hidden}
 .cal-cell.empty{background:none;cursor:default}
 .cal-cell.today{border:1px solid var(--accent)}
-.cal-cell.has-log{background:var(--done);color:var(--green);font-weight:700;box-shadow:0 0 10px rgba(239,43,63,.3)}
+.cal-cell.cal-done-workout{background:var(--accent);color:#fff;font-weight:700}
+.cal-cell.cal-done-run{background:#fff;color:var(--accent);font-weight:700}
+.cal-cell.cal-off-day{background:#000;color:#fff}
 .cal-dot{width:5px;height:5px;border-radius:50%;background:var(--green);margin-top:2px}
 
 /* ============ İSTATİSTİK PANELİ ============ */
@@ -302,6 +305,7 @@ button{font-family:inherit;cursor:pointer}
      ================================================================ -->
 <div id="topbar"></div>
 
+<div id="appScroll">
 <div id="view-home" class="view container"></div>
 
 <div id="view-workout" class="view" style="display:none">
@@ -317,6 +321,7 @@ button{font-family:inherit;cursor:pointer}
 <div id="view-stats" class="view container" style="display:none"></div>
 
 <div id="view-daily" class="view container" style="display:none"></div>
+</div>
 
 <div id="bottomnav"></div>
 
@@ -425,8 +430,8 @@ button{font-family:inherit;cursor:pointer}
 <!-- Choose what to add -->
 <div class="modal-bg" id="addTypeModal"><div class="modal">
   <h3>What would you like to add?</h3>
-  <button class="small-btn" style="width:100%;margin-bottom:8px;padding:12px;font-size:14px" onclick="closeModal('addTypeModal');openHabitModal()">Habit</button>
-  <button class="small-btn" style="width:100%;padding:12px;font-size:14px" onclick="closeModal('addTypeModal');openNoteNew()">Note</button>
+  <button class="save" style="width:100%;margin-bottom:8px;padding:12px;font-size:14px" onclick="closeModal('addTypeModal');openHabitModal()">Checklist</button>
+  <button class="save" style="width:100%;padding:12px;font-size:14px" onclick="closeModal('addTypeModal');openNoteNew()">Notes</button>
 </div></div>
 
 <script>
@@ -642,7 +647,7 @@ function renderTopbar(){
         </div>
       </div>`;
   } else {
-    const titles = {workout:'Workout', stats:'Statistics', daily:'Habits'};
+    const titles = {workout:'Workout', stats:'Statistics', daily:'Checklist'};
     bar.innerHTML = `<div class="topbar-row"><h1>${titles[currentTab]}</h1>${syncBadge}</div>`;
   }
 }
@@ -651,7 +656,7 @@ function renderBottomNav(){
   const items = [
     {id:'workout', ic:ICONS.workoutTab, label:'Workout'},
     {id:'stats', ic:ICONS.statsTab, label:'Stats'},
-    {id:'daily', ic:ICONS.dailyTab, label:'Habits'}
+    {id:'daily', ic:ICONS.dailyTab, label:'Routines'}
   ];
   nav.innerHTML = items.map(i=>`<button class="${currentTab===i.id?'active':''}" onclick="switchTab('${i.id}')"><span class="nav-ic">${i.ic}</span>${i.label}</button>`).join('');
 }
@@ -696,7 +701,7 @@ function renderOneWeekBlock(block){
         <button class="day-close-btn" onclick="event.stopPropagation();setDayOff('${block.id}',${i})" title="Make it a rest day">${ICONS.close}</button>
       </div>
       <div class="day-title-row" onclick="event.stopPropagation()">
-        <input class="day-title-input" data-rid="${r.id}" value="${esc(r.name)}" placeholder="Program name" oninput="renameRoutineInline('${r.id}', this.value)">
+        <input class="day-title-input" data-rid="${r.id}" value="${esc(r.name)}" placeholder="Program name" readonly onblur="this.setAttribute('readonly','')" oninput="renameRoutineInline('${r.id}', this.value)">
         <button class="day-title-edit-btn" onclick="focusDayTitle('${r.id}')" title="Rename">${ICONS.edit}</button>
       </div>
       <div class="routine-card-sub">${sub}</div>
@@ -760,7 +765,7 @@ function renameRoutineInline(id, value){
 }
 function focusDayTitle(routineId){
   const inp = document.querySelector('.day-title-input[data-rid="'+routineId+'"]');
-  if(inp){ inp.focus(); inp.select(); }
+  if(inp){ inp.removeAttribute('readonly'); inp.focus(); inp.select(); }
 }
 function setDayOff(blockId, i){
   askConfirm('Turn this day into a rest day? Your saved exercises will not be deleted.', ()=>{
@@ -1414,11 +1419,26 @@ function renderCalendar(){
   const firstDay = new Date(y,m,1); const startOffset=(firstDay.getDay()+6)%7; const daysInMonth=new Date(y,m+1,0).getDate();
   let html = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<div class="cal-dow">${d}</div>`).join('');
   for(let i=0;i<startOffset;i++) html += '<div class="cal-cell empty"></div>';
+  const today = todayStr();
   for(let d=1; d<=daysInMonth; d++){
     const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const hasLog = state.workoutLog.some(e=>e.date===dateStr);
-    const isToday = dateStr===todayStr();
-    html += `<div class="cal-cell ${hasLog?'has-log':''} ${isToday?'today':''}" ${hasLog?`onclick="showDay('${dateStr}')"`:''}><span>${d}</span>${hasLog?'<div class="cal-dot"></div>':''}</div>`;
+    const dayLogs = state.workoutLog.filter(e=>e.date===dateStr);
+    const hasLog = dayLogs.length>0;
+    const isToday = dateStr===today;
+    let extraClass = '';
+    if(!isToday){
+      if(hasLog){
+        const hasWorkout = dayLogs.some(e=>e.exercises.some(ex=>ex.type!=='treadmill'));
+        const hasRun = dayLogs.some(e=>e.exercises.some(ex=>ex.type==='treadmill'));
+        if(hasWorkout) extraClass = 'cal-done-workout';
+        else if(hasRun) extraClass = 'cal-done-run';
+      } else if(dateStr < today){
+        const wd = (new Date(y,m,d).getDay()+6)%7;
+        const isOff = state.weekBlocks.length>0 && state.weekBlocks.every(b=>b.plan[wd]==='OFF');
+        if(isOff) extraClass = 'cal-off-day';
+      }
+    }
+    html += `<div class="cal-cell ${extraClass} ${isToday?'today':''}" ${hasLog?`onclick="showDay('${dateStr}')"`:''}><span>${d}</span></div>`;
   }
   document.getElementById('calGrid').innerHTML = html;
 }
@@ -1619,7 +1639,7 @@ function renderDaily(){
     </div>`;
   }).join('');
   document.getElementById('view-daily').innerHTML = `
-    <div class="section-label">Habits</div>
+    <div class="section-label">Checklist</div>
     ${rows || '<div class="empty">No habits added yet.</div>'}
     <div class="section-label" style="margin-top:22px">Notes</div>
     ${noteCards || '<div class="empty">No notes added yet.</div>'}
