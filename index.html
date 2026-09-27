@@ -154,6 +154,9 @@ button{font-family:inherit;cursor:pointer}
 .video-frame iframe,.video-frame video{width:100%;display:block;aspect-ratio:16/9;background:#000}
 .table{margin-top:10px}
 .trow{display:grid;grid-template-columns:34px minmax(0,1fr) 60px 60px 34px 26px;gap:6px;align-items:center;margin-bottom:8px;width:100%;max-width:100%}
+.trow.bw-row{grid-template-columns:34px minmax(0,1fr) 60px 34px 26px}
+.kg-toggle{background:none;border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:700;padding:4px 8px;border-radius:8px;flex-shrink:0}
+.kg-toggle.on{color:var(--accent);border-color:var(--accent)}
 .thead{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.3px}
 .setnum{background:var(--card2);border-radius:8px;text-align:center;padding:8px 0;font-weight:700}
 .prev{color:var(--muted);font-size:13px;text-align:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -416,7 +419,6 @@ button{font-family:inherit;cursor:pointer}
 
 <!-- Not -->
 <div class="modal-bg" id="noteModal"><div class="modal hist-modal">
-  <button class="close-x" onclick="closeModal('noteModal')">✕</button>
   <div id="noteView">
     <h3 id="noteViewTitle"></h3>
     <p id="noteViewContent" style="white-space:pre-wrap;color:var(--text);font-size:14px;line-height:1.6;margin:0 0 14px"></p>
@@ -1013,6 +1015,7 @@ function exerciseInner(ex, moveHtml){
     <div class="ex-head">
       <input class="ex-name" value="${ex.name}" onclick="this.blur();openEditExercise('${ex.id}')" readonly>
       ${moveHtml}
+      <button class="kg-toggle ${ex.bodyweight?'':'on'}" onclick="toggleBodyweight('${ex.id}')" title="Toggle weight tracking">KG</button>
       <button class="ex-menu-btn" onclick="deleteExercise('${ex.id}')">${ICONS.close}</button>
     </div>
     <div style="display:flex;align-items:flex-start;gap:4px;margin-top:6px">
@@ -1022,22 +1025,30 @@ function exerciseInner(ex, moveHtml){
     <div class="video-row">${videoBlock}</div>`;
 
   const prevArr = getPrevSets(ex.name);
+  const bw = !!ex.bodyweight;
   const rows = ex.sets.map((s,i) => {
-    const prev = prevArr[i] ? `${prevArr[i].kg}kg x ${prevArr[i].reps}` : '-';
-    return `<div class="trow ${s.done?'done':''}">
+    const prev = prevArr[i] ? (bw ? `x ${prevArr[i].reps}` : `${prevArr[i].kg}kg x ${prevArr[i].reps}`) : '-';
+    const kgInput = bw ? '' : `<input type="number" placeholder="0" value="${s.kg}" onchange="updateSet('${ex.id}',${i},'kg',this.value)">`;
+    return `<div class="trow ${bw?'bw-row':''} ${s.done?'done':''}">
       <div class="setnum">${i+1}</div><div class="prev">${prev}</div>
-      <input type="number" placeholder="0" value="${s.kg}" onchange="updateSet('${ex.id}',${i},'kg',this.value)">
+      ${kgInput}
       <input type="number" placeholder="0" value="${s.reps}" onchange="updateSet('${ex.id}',${i},'reps',this.value)">
       <button class="check" onclick="toggleDone('${ex.id}',${i})">✓</button>
       <button class="del-set" onclick="removeSet('${ex.id}',${i})" title="Delete set">×</button>
     </div>`;
   }).join('');
+  const kgHeader = bw ? '' : '<div style="text-align:center">KG</div>';
   return `${head}
     <div class="table">
-      <div class="trow thead"><div>SET</div><div style="text-align:center">PREVIOUS</div><div style="text-align:center">KG</div><div style="text-align:center">REPS</div><div></div><div></div></div>
+      <div class="trow ${bw?'bw-row':''} thead"><div>SET</div><div style="text-align:center">PREVIOUS</div>${kgHeader}<div style="text-align:center">REPS</div><div></div><div></div></div>
       ${rows}
     </div>
     <button class="add-set" onclick="addSet('${ex.id}')"><span class="ic-plus"></span>Add Set</button>`;
+}
+function toggleBodyweight(exId){
+  const ex = activeRoutine().exercises.find(x=>x.id===exId);
+  ex.bodyweight = !ex.bodyweight;
+  save(); render();
 }
 function updateTreadmill(exId, field, val){
   const ex = activeRoutine().exercises.find(x=>x.id===exId);
