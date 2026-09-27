@@ -257,8 +257,9 @@ button{font-family:inherit;cursor:pointer}
 .chart-labels{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:4px}
 .tm-swipe{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;-webkit-overflow-scrolling:touch}
 .tm-swipe-page{flex:0 0 100%;scroll-snap-align:start;min-width:0}
-.measure-table{width:100%;border-collapse:collapse;font-size:14px}
+.measure-table{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}
 .measure-table th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;padding:6px 4px;border-bottom:1px solid var(--border)}
+.measure-table th:first-child,.measure-table td:first-child{width:44%}
 .measure-table td{padding:7px 4px;border-bottom:1px solid var(--border)}
 .measure-table input{width:90px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px;text-align:center;font-size:14px;font-family:inherit}
 
@@ -388,7 +389,7 @@ button{font-family:inherit;cursor:pointer}
 
 <!-- Habit ekle -->
 <div class="modal-bg" id="habitModal"><div class="modal">
-  <h3>Add Habit</h3>
+  <h3 id="habitModalTitle">Add Checklist Item</h3>
   <input id="habitNameInput" placeholder="Habit name">
   <div class="row"><button class="cancel" onclick="closeModal('habitModal')">Cancel</button><button class="save" onclick="saveHabit()"><span class="ic-save"></span>Save</button></div>
 </div></div>
@@ -409,6 +410,19 @@ button{font-family:inherit;cursor:pointer}
     <h3 id="dayDetailTitle"></h3>
   </div>
   <div id="dayDetailContent" class="hist-modal-body"></div>
+</div></div>
+
+<!-- Geçmiş güne antrenman gir -->
+<div class="modal-bg" id="retroLogModal"><div class="modal hist-modal sticky-header">
+  <div class="hist-modal-header">
+    <button class="close-x" onclick="closeModal('retroLogModal')">✕</button>
+    <h3 id="retroLogTitle">Log a Workout</h3>
+  </div>
+  <div class="hist-modal-body">
+    <select id="retroRoutineSelect" class="theme-select" onchange="renderRetroLogFields()" style="width:100%;margin-bottom:14px"></select>
+    <div id="retroLogFields"></div>
+    <button class="save" style="width:100%;margin-top:14px" onclick="saveRetroLog()"><span class="ic-save"></span>Save</button>
+  </div>
 </div></div>
 
 <!-- Not -->
@@ -1431,14 +1445,15 @@ function renderCalendar(){
       if(hasWorkout) extraClass = 'cal-done-workout';
       else if(hasRun) extraClass = 'cal-done-run';
     }
-    html += `<div class="cal-cell ${extraClass} ${isToday?'today':''}" ${hasLog?`onclick="showDay('${dateStr}')"`:''}><span>${d}</span></div>`;
+    const clickable = hasLog || dateStr<=today;
+    html += `<div class="cal-cell ${extraClass} ${isToday?'today':''}" ${clickable?`onclick="showDay('${dateStr}')"`:''}><span>${d}</span></div>`;
   }
   document.getElementById('calGrid').innerHTML = html;
 }
 function showDay(dateStr){
   const logs = state.workoutLog.filter(e=>e.date===dateStr);
   document.getElementById('dayDetailTitle').textContent = dateStr;
-  document.getElementById('dayDetailContent').innerHTML = logs.map(e=>`
+  const logsHtml = logs.map(e=>`
     <div class="hist-ex">
       <div class="hist-ex-name">${e.routineName}</div>
       ${e.exercises.map((ex,exi)=>`
@@ -1450,7 +1465,91 @@ function showDay(dateStr){
             : ex.sets.map((s,i)=>`<div>Set ${i+1} — ${s.kg}kg, ${s.reps} reps</div>`).join('')}</div>
         </div>`).join('')}
     </div>`).join('') || '<div class="empty">No entries.</div>';
+  document.getElementById('dayDetailContent').innerHTML = logsHtml +
+    `<button class="save" style="width:100%;margin-top:14px" onclick="openRetroLog('${dateStr}')"><span class="ic-plus"></span>Log a Workout</button>`;
   document.getElementById('dayDetailModal').classList.add('show');
+}
+let retroLogDate = null;
+function openRetroLog(dateStr){
+  retroLogDate = dateStr;
+  document.getElementById('retroLogTitle').textContent = 'Log a Workout — ' + dateStr;
+  const sel = document.getElementById('retroRoutineSelect');
+  sel.innerHTML = state.routines.length
+    ? state.routines.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('')
+    : '<option value="">No programs yet</option>';
+  renderRetroLogFields();
+  document.getElementById('retroLogModal').classList.add('show');
+}
+function renderRetroLogFields(){
+  const sel = document.getElementById('retroRoutineSelect');
+  const r = state.routines.find(x=>x.id===sel.value);
+  const wrap = document.getElementById('retroLogFields');
+  if(!r){ wrap.innerHTML = '<div class="empty">No programs yet. Create one from the Workout tab first.</div>'; return; }
+  const existing = state.workoutLog.find(e=>e.date===retroLogDate && e.routineId===r.id);
+  wrap.innerHTML = r.exercises.map(ex=>{
+    const exExisting = existing ? existing.exercises.find(x=>x.name===ex.name) : null;
+    if(ex.type==='treadmill'){
+      const t = (exExisting && exExisting.treadmill) || {speed:'',incline:'',duration:''};
+      return `<div class="exercise" data-exname="${esc(ex.name)}" data-extype="treadmill">
+        <div class="ex-head"><div class="ex-name" style="cursor:default">${esc(ex.name)}</div></div>
+        <div class="tm-grid" style="margin-top:10px">
+          <div><label class="tm-label">Speed (km/h)</label><input type="number" step="0.1" class="retro-speed" placeholder="0" value="${t.speed||''}"></div>
+          <div><label class="tm-label">Incline (%)</label><input type="number" step="0.5" class="retro-incline" placeholder="0" value="${t.incline||''}"></div>
+          <div><label class="tm-label">Duration (min)</label><input type="number" class="retro-duration" placeholder="0" value="${t.duration||''}"></div>
+        </div>
+      </div>`;
+    }
+    const existingSets = (exExisting && exExisting.sets) || [];
+    const setCount = Math.max(ex.sets.length, existingSets.length, 1);
+    const rows = [];
+    for(let i=0;i<setCount;i++){
+      const s = existingSets[i] || {};
+      rows.push(`<div class="trow"><div class="setnum">${i+1}</div><div></div><input type="number" placeholder="0" class="retro-kg" value="${s.kg||''}"><input type="number" placeholder="0" class="retro-reps" value="${s.reps||''}"><div></div><div></div></div>`);
+    }
+    return `<div class="exercise" data-exname="${esc(ex.name)}" data-extype="normal">
+      <div class="ex-head"><div class="ex-name" style="cursor:default">${esc(ex.name)}</div></div>
+      <div class="table"><div class="trow thead"><div>SET</div><div></div><div style="text-align:center">KG</div><div style="text-align:center">REPS</div><div></div><div></div></div>${rows.join('')}</div>
+    </div>`;
+  }).join('') || '<div class="empty">This program has no exercises yet.</div>';
+}
+function saveRetroLog(){
+  const sel = document.getElementById('retroRoutineSelect');
+  const r = state.routines.find(x=>x.id===sel.value);
+  if(!r) return;
+  const exDivs = [...document.querySelectorAll('#retroLogFields .exercise')];
+  const entryExercises = [];
+  exDivs.forEach(div=>{
+    const name = div.getAttribute('data-exname');
+    if(div.getAttribute('data-extype')==='treadmill'){
+      const speed = div.querySelector('.retro-speed').value;
+      const incline = div.querySelector('.retro-incline').value;
+      const duration = div.querySelector('.retro-duration').value;
+      if(speed || incline || duration){
+        entryExercises.push({name, type:'treadmill', notes:'', treadmill:{speed:speed||0, incline:incline||0, duration:duration||0}, sets:[]});
+      }
+    } else {
+      const kgInputs = [...div.querySelectorAll('.retro-kg')];
+      const repInputs = [...div.querySelectorAll('.retro-reps')];
+      const sets = [];
+      kgInputs.forEach((inp,i)=>{
+        const kg = inp.value, reps = repInputs[i].value;
+        if(kg || reps) sets.push({kg:kg||0, reps:reps||0});
+      });
+      if(sets.length>0) entryExercises.push({name, notes:'', sets});
+    }
+  });
+  if(entryExercises.length===0){
+    state.workoutLog = state.workoutLog.filter(e=>!(e.date===retroLogDate && e.routineId===r.id));
+    save(); closeModal('retroLogModal'); showDay(retroLogDate); renderCalendar();
+    return;
+  }
+  let entry = state.workoutLog.find(e=>e.date===retroLogDate && e.routineId===r.id);
+  if(entry){ entry.exercises = entryExercises; }
+  else { state.workoutLog.push({date:retroLogDate, routineId:r.id, routineName:r.name, durationSec:0, exercises:entryExercises}); }
+  save();
+  closeModal('retroLogModal');
+  showDay(retroLogDate);
+  renderCalendar();
 }
 function deleteLoggedExercise(dateStr, routineId, exIndex){
   askConfirm('Are you sure you want to delete this logged exercise?', ()=>{
@@ -1476,7 +1575,7 @@ function renderMeasureTable(){
     const val = todayEntry ? todayEntry.value : (lastEntry ? lastEntry.value : '');
     return `<tr><td>${t.key}</td><td style="text-align:right"><input type="number" step="0.1" id="${measureId(t.key)}" value="${val}" oninput="liveMeasurePreview('${t.key}', this.value)"><span class="muted" style="margin-left:6px">${t.unit}</span></td></tr>`;
   }).join('');
-  document.getElementById('measureTable').innerHTML = `<tr><th>Measurement</th><th style="text-align:right">Value</th></tr>${rows}`;
+  document.getElementById('measureTable').innerHTML = `<tr><th>Measurement</th><th>Value</th></tr>${rows}`;
 }
 function liveMeasurePreview(type, val){
   const sel = document.getElementById('measureTypeSelect');
@@ -1618,6 +1717,7 @@ function renderDaily(){
     return `<div class="habit-row ${done?'done':''}">
       <button class="habit-check" onclick="toggleHabit('${h.id}')">${ICONS.check}</button>
       <div class="habit-name">${h.name}</div>
+      <button class="ex-menu-btn" onclick="openEditHabitModal('${h.id}')" title="Rename">${ICONS.edit}</button>
       <button class="ex-menu-btn" onclick="deleteHabit('${h.id}')">${ICONS.close}</button>
     </div>`;
   }).join('');
@@ -1645,11 +1745,26 @@ function toggleHabit(id){
   state.dailyLog[today][id] = !state.dailyLog[today][id];
   save(); renderDaily();
 }
-function openHabitModal(){ document.getElementById('habitNameInput').value=''; document.getElementById('habitModal').classList.add('show'); }
+let editHabitId = null;
+function openHabitModal(){ editHabitId = null; document.getElementById('habitModalTitle').textContent = 'Add Checklist Item'; document.getElementById('habitNameInput').value=''; document.getElementById('habitModal').classList.add('show'); }
+function openEditHabitModal(id){
+  const h = state.dailyHabits.find(x=>x.id===id);
+  if(!h) return;
+  editHabitId = id;
+  document.getElementById('habitModalTitle').textContent = 'Rename Checklist Item';
+  document.getElementById('habitNameInput').value = h.name;
+  document.getElementById('habitModal').classList.add('show');
+}
 function saveHabit(){
   const name = document.getElementById('habitNameInput').value.trim();
   if(!name) return;
-  state.dailyHabits.push({ id: uid(), name, notes:'' });
+  if(editHabitId){
+    const h = state.dailyHabits.find(x=>x.id===editHabitId);
+    if(h) h.name = name;
+  } else {
+    state.dailyHabits.push({ id: uid(), name, notes:'' });
+  }
+  editHabitId = null;
   save(); closeModal('habitModal'); renderDaily();
 }
 function deleteHabit(id){
