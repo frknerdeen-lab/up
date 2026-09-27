@@ -110,9 +110,12 @@ button{font-family:inherit;cursor:pointer}
 .day-add-btn{background:none;border:none;color:var(--accent);padding:3px;border-radius:8px;flex-shrink:0;display:flex;align-items:center}
 .day-add-btn:hover{background:rgba(239,43,63,.12)}
 .day-add-btn .ic-plus{margin:0}
-.day-title-input{background:transparent;border:none;border-bottom:1.5px solid transparent;color:var(--text);font-size:15px;font-weight:700;padding:2px 0;width:100%;min-width:0;margin-bottom:8px;display:block}
+.day-title-row{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.day-title-input{background:transparent;border:none;border-bottom:1.5px solid transparent;color:var(--text);font-size:15px;font-weight:700;padding:2px 0;width:100%;min-width:0;display:block}
 .day-title-input:focus{outline:none;border-bottom-color:var(--accent)}
 .day-title-input::placeholder{color:var(--muted);font-weight:500}
+.day-title-edit-btn{background:none;border:none;color:var(--muted);flex-shrink:0;padding:4px;border-radius:6px;display:flex;align-items:center}
+.day-title-edit-btn:hover{background:var(--card2);color:var(--text)}
 .routine-card.off-day .routine-card-sub{margin-top:0}
 .day-choice-row{display:flex;gap:8px;margin-top:2px}
 .day-choice-btn{flex:1;padding:10px;border-radius:10px;font-weight:800;font-size:13px;letter-spacing:.3px;border:1.5px solid var(--border);background:var(--card2);color:var(--muted)}
@@ -168,7 +171,8 @@ button{font-family:inherit;cursor:pointer}
 .add-set:hover{background:#20212a}
 .add-exercise{width:44px;height:44px;flex-shrink:0;background:var(--card);border:1.5px dashed var(--accent);color:var(--accent);border-radius:12px;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-left:auto}
 .add-exercise:hover{box-shadow:var(--glow);background:rgba(239,43,63,.08)}
-.add-exercise.add-exercise-long{width:100%;height:auto;padding:14px;border-radius:14px;font-size:14px;font-weight:800;letter-spacing:.2px;gap:8px;margin-left:0}
+.add-exercise.add-exercise-long{width:100%;height:auto;padding:14px;border-radius:14px;font-size:14px;font-weight:800;letter-spacing:.2px;gap:8px;margin-left:0;background:var(--accent);border:none;color:#fff}
+.add-exercise.add-exercise-long:hover{background:var(--accent);box-shadow:var(--glow)}
 .add-exercise.add-exercise-long .ic-plus{width:16px;height:16px;margin:0}
 .del-set{background:none;border:none;color:var(--muted);font-size:18px;padding:2px;line-height:1}
 .del-set:hover{color:var(--danger)}
@@ -183,6 +187,7 @@ button{font-family:inherit;cursor:pointer}
 
 /* ============ MODAL ============ */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:30;padding:20px}
+#confirmModal{z-index:40}
 .modal-bg.show{display:flex}
 .modal{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:20px;width:100%;max-width:360px;position:relative}
 .modal h3{margin:0 0 14px;font-size:16px}
@@ -690,8 +695,11 @@ function renderOneWeekBlock(block){
         <span class="day-label">${name}</span>
         <button class="day-close-btn" onclick="event.stopPropagation();setDayOff('${block.id}',${i})" title="Make it a rest day">${ICONS.close}</button>
       </div>
-      <input class="day-title-input" value="${esc(r.name)}" placeholder="Program name" onclick="event.stopPropagation()" oninput="renameRoutineInline('${r.id}', this.value)">
-      <div class="routine-card-sub">${sub} ${ICONS.edit}</div>
+      <div class="day-title-row" onclick="event.stopPropagation()">
+        <input class="day-title-input" data-rid="${r.id}" value="${esc(r.name)}" placeholder="Program name" oninput="renameRoutineInline('${r.id}', this.value)">
+        <button class="day-title-edit-btn" onclick="focusDayTitle('${r.id}')" title="Rename">${ICONS.edit}</button>
+      </div>
+      <div class="routine-card-sub">${sub}</div>
     </div>`;
   }).join('');
   return `<div class="week-block">
@@ -749,6 +757,10 @@ function renameRoutineInline(id, value){
   r.name = value;
   state.workoutLog.forEach(e=>{ if(e.routineId===id) e.routineName = value; });
   save();
+}
+function focusDayTitle(routineId){
+  const inp = document.querySelector('.day-title-input[data-rid="'+routineId+'"]');
+  if(inp){ inp.focus(); inp.select(); }
 }
 function setDayOff(blockId, i){
   askConfirm('Turn this day into a rest day? Your saved exercises will not be deleted.', ()=>{
