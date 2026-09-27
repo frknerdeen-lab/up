@@ -81,14 +81,24 @@ button{font-family:inherit;cursor:pointer}
 .add-tile{width:100%;background:var(--card);border:1.5px dashed var(--border);color:var(--accent);border-radius:14px;padding:16px;font-size:15px;font-weight:700;margin-bottom:12px}
 .section-label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin:4px 0 10px;font-weight:700}
 .add-tile:hover{border-color:var(--accent);box-shadow:var(--glow)}
-.week-accordion-header{width:100%;display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1.5px solid var(--border);color:var(--text);border-radius:14px;padding:14px 16px;font-size:15px;font-weight:700;margin-bottom:12px;cursor:pointer}
-.week-accordion-header:hover{border-color:var(--accent)}
-.chevron{display:inline-block;transition:transform .2s ease;color:var(--accent);font-size:14px}
+.week-accordion-header{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:12px 8px 12px 16px;margin-bottom:12px}
+.week-accordion-header:focus-within,.week-accordion-header:hover{border-color:var(--accent)}
+.week-title-input{background:transparent;border:none;color:var(--text);font-size:15px;font-weight:700;flex:1;min-width:0;padding:4px 0}
+.week-title-input:focus{outline:none}
+.week-title-input::placeholder{color:var(--muted);font-weight:700}
+.chevron-btn{background:none;border:none;color:var(--accent);padding:6px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;cursor:pointer}
+.chevron-btn:hover{background:var(--card2)}
+.chevron{display:inline-block;transition:transform .2s ease;font-size:14px}
 .chevron.open{transform:rotate(180deg)}
-.week-accordion-body{display:flex;flex-direction:column;gap:10px;margin-bottom:4px}
-.day-title-input{background:transparent;border:none;border-bottom:1.5px solid transparent;color:var(--text);font-size:15px;font-weight:700;padding:2px 0;width:100%;min-width:0}
+.week-accordion-body{display:flex;flex-direction:column;gap:12px;margin-bottom:4px}
+.day-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.day-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.3px;font-weight:700}
+.day-close-btn{background:none;border:none;color:var(--muted);font-size:15px;padding:4px 6px;border-radius:6px;flex-shrink:0}
+.day-close-btn:hover{background:var(--card2);color:var(--text)}
+.day-title-input{background:transparent;border:none;border-bottom:1.5px solid transparent;color:var(--text);font-size:15px;font-weight:700;padding:2px 0;width:100%;min-width:0;margin-bottom:8px;display:block}
 .day-title-input:focus{outline:none;border-bottom-color:var(--accent)}
 .day-title-input::placeholder{color:var(--muted);font-weight:500}
+.routine-card.off-day .routine-card-sub{margin-top:0}
 
 /* ============ ANTRENMAN OTURUMU İSTATİSTİK ÇUBUĞU ============ */
 .stats{display:flex;justify-content:space-around;padding:16px;border-bottom:1px solid var(--border)}
@@ -448,6 +458,7 @@ function normalizeState(s){
   if(!s.treadmillWeeklyGoal) s.treadmillWeeklyGoal = 3;
   if(!Array.isArray(s.weekPlan) || s.weekPlan.length!==7) s.weekPlan = new Array(7).fill(null);
   if(typeof s.weekMapped !== 'boolean') s.weekMapped = false;
+  if(typeof s.weekSectionName !== 'string' || !s.weekSectionName) s.weekSectionName = 'Haftalık Antrenman';
   return s;
 }
 let state = JSON.parse(localStorage.getItem('heavyState') || 'null') || {};
@@ -643,35 +654,32 @@ function renderWeekCards(el){
     const r = routineId ? state.routines.find(x=>x.id===routineId) : null;
     if(!r){
       return `<div class="routine-card off-day">
-        <div class="routine-card-top">
-          <div class="routine-card-name muted">${name}</div>
+        <div class="day-row">
+          <span class="day-label">${name}</span>
         </div>
-        <div class="routine-card-sub" style="margin-bottom:10px">Dinlenme Günü</div>
-        <button class="add-tile" style="padding:9px" onclick="event.stopPropagation();addWorkoutForDay(${i})">${ICONS.add} Antrenman Ekle</button>
+        <div class="routine-card-sub">Dinlenme Günü</div>
       </div>`;
     }
     const logs = state.workoutLog.filter(e=>e.routineId===r.id).sort((a,b)=>a.date.localeCompare(b.date));
     const last = logs[logs.length-1];
     const sub = (last ? 'Son antrenman: '+last.date : 'Henüz yapılmadı') + ' · ' + r.exercises.length + ' egzersiz';
     return `<div class="routine-card">
-      <div class="routine-card-top">
-        <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
-          <span class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.3px">${name}</span>
-          <input class="day-title-input" value="${esc(r.name)}" placeholder="Program adı (örn. İtiş)" onclick="event.stopPropagation()" oninput="renameRoutineInline('${r.id}', this.value)">
-        </div>
-        <div class="routine-card-actions">
-          <button onclick="event.stopPropagation();setDayOff(${i})" title="Dinlenme günü yap">${ICONS.close}</button>
-        </div>
+      <div class="day-row">
+        <span class="day-label">${name}</span>
+        <button class="day-close-btn" onclick="event.stopPropagation();setDayOff(${i})" title="Dinlenme günü yap">${ICONS.close}</button>
       </div>
+      <input class="day-title-input" value="${esc(r.name)}" placeholder="Program adı (örn. İtiş)" onclick="event.stopPropagation()" oninput="renameRoutineInline('${r.id}', this.value)">
       <div class="routine-card-sub" style="cursor:pointer" onclick="openRoutine('${r.id}')">${sub} · Egzersizleri düzenle →</div>
     </div>`;
   }).join('');
+  const hasOffDay = state.weekPlan.some(rid=>!rid);
   const cards = `
-    <button class="week-accordion-header" onclick="toggleWeekSection()">
-      <span>Haftalık Antrenman</span>
-      <span class="chevron ${weekSectionOpen?'open':''}">▾</span>
-    </button>
-    <div class="week-accordion-body" style="${weekSectionOpen?'':'display:none'}">${dayCards}</div>`;
+    <div class="week-accordion-header">
+      <input class="week-title-input" value="${esc(state.weekSectionName)}" placeholder="Haftalık Antrenman" onclick="event.stopPropagation()" oninput="renameWeekSection(this.value)">
+      <button class="chevron-btn" onclick="toggleWeekSection()"><span class="chevron ${weekSectionOpen?'open':''}">▾</span></button>
+    </div>
+    <div class="week-accordion-body" style="${weekSectionOpen?'':'display:none'}">${dayCards}</div>
+    ${hasOffDay ? `<button class="add-tile" onclick="addWorkoutGlobal()">${ICONS.add} Antrenman Ekle</button>` : ''}`;
   const unassigned = state.routines.filter(r=>!state.weekPlan.includes(r.id));
   const unassignedHtml = unassigned.length ? `
     <div class="section-label" style="margin-top:22px">Eşlenmemiş Programlar</div>
@@ -696,6 +704,15 @@ function addWorkoutForDay(i){
   state.routines.push(newR);
   state.weekPlan[i] = newR.id;
   save(); renderHome();
+}
+function addWorkoutGlobal(){
+  const i = state.weekPlan.findIndex(rid=>!rid);
+  if(i===-1) return;
+  addWorkoutForDay(i);
+}
+function renameWeekSection(value){
+  state.weekSectionName = value || 'Haftalık Antrenman';
+  save();
 }
 function renameRoutineInline(id, value){
   const r = state.routines.find(x=>x.id===id);
