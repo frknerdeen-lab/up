@@ -261,7 +261,10 @@ button{font-family:inherit;cursor:pointer}
 .measure-table th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;padding:6px 4px;border-bottom:1px solid var(--border)}
 .measure-table th:first-child,.measure-table td:first-child{width:44%}
 .measure-table td{padding:7px 4px;border-bottom:1px solid var(--border)}
-.measure-table input{width:90px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px;text-align:center;font-size:14px;font-family:inherit}
+.measure-table td:last-child{text-align:right}
+.measure-input-wrap{position:relative;display:inline-block;width:90px}
+.measure-table input{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 30px 6px 10px;text-align:left;font-size:14px;font-family:inherit;box-sizing:border-box}
+.measure-unit{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted);opacity:.5;font-size:12px;pointer-events:none}
 
 /* ============ GÜNDELİK ============ */
 .habit-row{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px 14px;margin-bottom:10px}
@@ -1483,7 +1486,7 @@ function renderMeasureTable(){
     const todayEntry = state.measurements.find(m=>m.type===t.key && m.date===today);
     const lastEntry = state.measurements.filter(m=>m.type===t.key).sort((a,b)=>a.date.localeCompare(b.date)).pop();
     const val = todayEntry ? todayEntry.value : (lastEntry ? lastEntry.value : '');
-    return `<tr><td>${t.key}</td><td><input type="number" step="0.1" id="${measureId(t.key)}" value="${val}" oninput="liveMeasurePreview('${t.key}', this.value)"><span class="muted" style="margin-left:6px">${t.unit}</span></td></tr>`;
+    return `<tr><td>${t.key}</td><td><div class="measure-input-wrap"><input type="number" step="0.1" id="${measureId(t.key)}" value="${val}" oninput="liveMeasurePreview('${t.key}', this.value)"><span class="measure-unit">${t.unit}</span></div></td></tr>`;
   }).join('');
   document.getElementById('measureTable').innerHTML = `<tr><th>Measurement</th><th>Value</th></tr>${rows}`;
 }
