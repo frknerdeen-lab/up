@@ -76,6 +76,8 @@ button{font-family:inherit;cursor:pointer}
 .routine-card-actions button{background:none;border:none;color:var(--muted);font-size:15px;padding:4px 6px;border-radius:6px}
 .routine-card-actions button:hover{background:var(--card2);color:var(--text)}
 .routine-card-sub{color:var(--muted);font-size:13px;margin-top:4px}
+.routine-card.off-day{opacity:.55;cursor:default}
+.routine-card.off-day:hover{border-color:var(--border);box-shadow:0 8px 28px rgba(0,0,0,.35)}
 .add-tile{width:100%;background:var(--card);border:1.5px dashed var(--border);color:var(--accent);border-radius:14px;padding:16px;font-size:15px;font-weight:700;margin-bottom:12px}
 .section-label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin:4px 0 10px;font-weight:700}
 .add-tile:hover{border-color:var(--accent);box-shadow:var(--glow)}
@@ -311,8 +313,15 @@ button{font-family:inherit;cursor:pointer}
 <!-- Program ekle/düzenle -->
 <div class="modal-bg" id="routineModal"><div class="modal">
   <h3 id="routineModalTitle">Yeni Program</h3>
-  <input id="routineNameInput" placeholder="Program adı (örn. Pazartesi - İtiş)">
+  <input id="routineNameInput" placeholder="Program adı (örn. İtiş)">
   <div class="row"><button class="cancel" onclick="closeModal('routineModal')">İptal</button><button class="save" onclick="saveRoutineModal()">Kaydet</button></div>
+</div></div>
+
+<!-- Programı bir güne ata -->
+<div class="modal-bg" id="dayPickerModal"><div class="modal">
+  <h3>Hangi Güne Atansın?</h3>
+  <select id="dayPickerSelect" class="theme-select"></select>
+  <div class="row"><button class="cancel" onclick="closeModal('dayPickerModal')">İptal</button><button class="save" onclick="confirmAssignDay()">Ata</button></div>
 </div></div>
 
 <!-- Geçmiş (rutine özel) -->
@@ -400,6 +409,7 @@ const MEASURE_TYPES = [
   {key:'Kilo', unit:'kg'}, {key:'Bel', unit:'cm'}, {key:'Kalça', unit:'cm'},
   {key:'Göğüs', unit:'cm'}, {key:'Sağ Kol', unit:'cm'}, {key:'Sol Kol', unit:'cm'}, {key:'Bacak', unit:'cm'}, {key:'Omuz', unit:'cm'}
 ];
+const DAY_NAMES = ['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar'];
 
 /* =========================================================================
    VERİ
@@ -428,6 +438,8 @@ function normalizeState(s){
   if(!s.dailyLog || typeof s.dailyLog !== 'object' || Array.isArray(s.dailyLog)) s.dailyLog = {};
   if(!Array.isArray(s.notes)) s.notes = [];
   if(!s.treadmillWeeklyGoal) s.treadmillWeeklyGoal = 3;
+  if(!Array.isArray(s.weekPlan) || s.weekPlan.length!==7) s.weekPlan = new Array(7).fill(null);
+  if(typeof s.weekMapped !== 'boolean') s.weekMapped = false;
   return s;
 }
 let state = JSON.parse(localStorage.getItem('heavyState') || 'null') || {};
@@ -591,32 +603,101 @@ function renderBottomNav(){
    ========================================================================= */
 function renderHome(){
   const el = document.getElementById('view-home');
-  const cards = state.routines.map((r,ri)=>{
+  if(!state.weekMapped){ renderWeekMapping(el); return; }
+  renderWeekCards(el);
+}
+function renderWeekMapping(el){
+  el.innerHTML = `
+    <div class="stat-section">
+      <h3 style="margin-bottom:6px">Haftalık Programını Eşleştir</h3>
+      <div class="muted" style="font-size:13px;margin-bottom:16px;line-height:1.5">Mevcut programlarını haftanın günlerine ata. Antrenman yapmadığın günü "Dinlenme (OFF)" bırak. Bunu bir kereliğine yapıyoruz, sonra istediğin zaman değiştirebilirsin. Geçmiş kayıtların hiçbir şekilde etkilenmez.</div>
+      ${DAY_NAMES.map((name,i)=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="font-weight:700;min-width:88px;flex-shrink:0">${name}</div>
+          <select class="theme-select" id="weekmap-${i}" style="flex:1">
+            <option value="">Dinlenme (OFF)</option>
+            ${state.routines.map(r=>`<option value="${r.id}" ${i<state.routines.length && state.routines[i].id===r.id?'selected':''}>${esc(r.name)}</option>`).join('')}
+          </select>
+        </div>`).join('')}
+      <button class="finish-btn" style="width:100%;margin-top:18px" onclick="confirmWeekMapping()">Kaydet ve Devam Et</button>
+    </div>`;
+}
+function confirmWeekMapping(){
+  const plan = DAY_NAMES.map((_,i)=>document.getElementById('weekmap-'+i).value || null);
+  state.weekPlan = plan;
+  state.weekMapped = true;
+  save(); renderHome();
+}
+function renderWeekCards(el){
+  const cards = DAY_NAMES.map((name,i)=>{
+    const routineId = state.weekPlan[i];
+    const r = routineId ? state.routines.find(x=>x.id===routineId) : null;
+    if(!r){
+      return `<div class="routine-card off-day">
+        <div class="routine-card-top">
+          <div class="routine-card-name muted">${name}</div>
+          <div class="routine-card-actions">
+            <button onclick="event.stopPropagation();setDayWork(${i})" title="Program ekle">${ICONS.add}</button>
+          </div>
+        </div>
+        <div class="routine-card-sub">Dinlenme Günü</div>
+      </div>`;
+    }
     const logs = state.workoutLog.filter(e=>e.routineId===r.id).sort((a,b)=>a.date.localeCompare(b.date));
     const last = logs[logs.length-1];
     const sub = (last ? 'Son antrenman: '+last.date : 'Henüz yapılmadı') + ' · ' + r.exercises.length + ' egzersiz';
     return `<div class="routine-card" onclick="openRoutine('${r.id}')">
       <div class="routine-card-top">
-        <div class="routine-card-name">${r.name}</div>
+        <div class="routine-card-name">${name} · ${esc(r.name)}</div>
         <div class="routine-card-actions">
-          <button onclick="event.stopPropagation();moveRoutine('${r.id}',-1)" title="Yukarı taşı" style="${ri===0?'opacity:.3':''}">▲</button>
-          <button onclick="event.stopPropagation();moveRoutine('${r.id}',1)" title="Aşağı taşı" style="${ri===state.routines.length-1?'opacity:.3':''}">▼</button>
           <button onclick="event.stopPropagation();renameRoutine('${r.id}')" title="Düzenle">${ICONS.edit}</button>
-          <button onclick="event.stopPropagation();deleteRoutine('${r.id}')" title="Sil">${ICONS.delete}</button>
+          <button onclick="event.stopPropagation();setDayOff(${i})" title="Dinlenme günü yap">${ICONS.close}</button>
         </div>
       </div>
       <div class="routine-card-sub">${sub}</div>
     </div>`;
   }).join('');
-  el.innerHTML = (cards || '<div class="empty">Henüz bir programın yok.<br>Aşağıdan ilk programını oluştur.</div>')
-    + `<button class="add-tile" onclick="openRoutineModal('new')">${ICONS.add} Yeni Program</button>`;
+  const unassigned = state.routines.filter(r=>!state.weekPlan.includes(r.id));
+  const unassignedHtml = unassigned.length ? `
+    <div class="section-label" style="margin-top:22px">Eşlenmemiş Programlar</div>
+    ${unassigned.map(r=>`<div class="routine-card" onclick="openRoutine('${r.id}')">
+      <div class="routine-card-top">
+        <div class="routine-card-name">${esc(r.name)}</div>
+        <div class="routine-card-actions">
+          <button onclick="event.stopPropagation();openDayPicker('${r.id}')" title="Bir güne ata">${ICONS.calendar}</button>
+          <button onclick="event.stopPropagation();deleteRoutine('${r.id}')" title="Sil">${ICONS.delete}</button>
+        </div>
+      </div>
+      <div class="routine-card-sub">${r.exercises.length} egzersiz</div>
+    </div>`).join('')}` : '';
+  el.innerHTML = cards + unassignedHtml;
 }
-function moveRoutine(id, dir){
-  const idx = state.routines.findIndex(r=>r.id===id);
-  const swapIdx = idx + dir;
-  if(idx<0 || swapIdx<0 || swapIdx>=state.routines.length) return;
-  const tmp = state.routines[idx]; state.routines[idx] = state.routines[swapIdx]; state.routines[swapIdx] = tmp;
-  save(); renderHome();
+function setDayWork(i){
+  routineModalTargetId = null;
+  document.getElementById('routineModalTitle').textContent = DAY_NAMES[i] + ' İçin Program Adı';
+  document.getElementById('routineNameInput').value = '';
+  const modalEl = document.getElementById('routineModal');
+  modalEl.dataset.mode = 'weekday-new';
+  modalEl.dataset.day = i;
+  modalEl.classList.add('show');
+}
+function setDayOff(i){
+  askConfirm('Bu günü dinlenme günü yapmak istiyor musun? Program silinmez, sadece haftadan çıkar; Eşlenmemiş Programlar\'da kalır.', ()=>{
+    state.weekPlan[i] = null;
+    save(); renderHome();
+  });
+}
+let dayPickerTargetRoutineId = null;
+function openDayPicker(routineId){
+  dayPickerTargetRoutineId = routineId;
+  const sel = document.getElementById('dayPickerSelect');
+  sel.innerHTML = DAY_NAMES.map((name,i)=>`<option value="${i}">${name}${state.weekPlan[i]?' (dolu, değiştirilir)':''}</option>`).join('');
+  document.getElementById('dayPickerModal').classList.add('show');
+}
+function confirmAssignDay(){
+  const i = parseInt(document.getElementById('dayPickerSelect').value,10);
+  state.weekPlan[i] = dayPickerTargetRoutineId;
+  save(); closeModal('dayPickerModal'); renderHome();
 }
 function openRoutineModal(mode, id){
   routineModalTargetId = mode==='rename' ? id : null;
@@ -629,9 +710,15 @@ function renameRoutine(id){ openRoutineModal('rename', id); }
 function saveRoutineModal(){
   const name = document.getElementById('routineNameInput').value.trim();
   if(!name) return;
-  const mode = document.getElementById('routineModal').dataset.mode;
+  const modalEl = document.getElementById('routineModal');
+  const mode = modalEl.dataset.mode;
   if(mode==='new'){
     state.routines.push({ id: uid(), name, exercises: [] });
+  } else if(mode==='weekday-new'){
+    const day = parseInt(modalEl.dataset.day,10);
+    const newR = { id: uid(), name, exercises: [] };
+    state.routines.push(newR);
+    state.weekPlan[day] = newR.id;
   } else {
     const r = state.routines.find(x=>x.id===routineModalTargetId);
     if(r){ state.workoutLog.forEach(e=>{ if(e.routineId===r.id) e.routineName = name; }); r.name = name; }
@@ -643,6 +730,7 @@ function deleteRoutine(id){
   if(!r) return;
   askConfirm(`"${r.name}" programını silmek istediğine emin misin? Geçmiş antrenman kayıtların kalır.`, ()=>{
     state.routines = state.routines.filter(x=>x.id!==id);
+    state.weekPlan = state.weekPlan.map(rid=>rid===id?null:rid);
     save(); renderHome();
   });
 }
