@@ -1063,24 +1063,16 @@ function computeWeightRoutineCoverage(){
 }
 function computeTreadmillGoal(){
   const weekDates = getWeekDates(todayStr());
-  // Hedef sayısı artık manuel girilmiyor; geçmişte koşu bandı yapılan haftaların
-  // ortalama seans sayısından otomatik hesaplanıyor.
-  const weekMap = {};
+  // Hedef, içinde koşu bandı egzersizi olan program sayısından geliyor
+  // (Antrenman sekmesindeki programlar taranıyor) - manuel giriş yok.
+  const treadmillRoutines = state.routines.filter(r=>r.exercises.some(ex=>ex.type==='treadmill'));
+  if(treadmillRoutines.length===0) return { pct:0, done:0, goal:0 };
+  const doneIds = new Set();
   state.workoutLog.forEach(e=>{
-    if(e.exercises.some(ex=>ex.type==='treadmill')){
-      const wk = isoWeekKey(e.date);
-      weekMap[wk] = weekMap[wk] || new Set();
-      weekMap[wk].add(e.date);
-    }
+    if(weekDates.includes(e.date) && e.exercises.some(ex=>ex.type==='treadmill')) doneIds.add(e.routineId);
   });
-  const weekKeys = Object.keys(weekMap);
-  const avg = weekKeys.length ? weekKeys.reduce((a,k)=>a+weekMap[k].size,0)/weekKeys.length : 3;
-  const goal = Math.max(1, Math.round(avg));
-  const sessionDates = new Set();
-  state.workoutLog.forEach(e=>{
-    if(weekDates.includes(e.date) && e.exercises.some(ex=>ex.type==='treadmill')) sessionDates.add(e.date);
-  });
-  return { pct: Math.min(100, Math.round((sessionDates.size/goal)*100)), done: sessionDates.size, goal };
+  const done = treadmillRoutines.filter(r=>doneIds.has(r.id)).length;
+  return { pct: Math.round((done/treadmillRoutines.length)*100), done, goal: treadmillRoutines.length };
 }
 function getTreadmillLogs(){
   const logs = [];
