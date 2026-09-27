@@ -28,6 +28,8 @@
 ::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#4d9fff,#8b5cf6);border-radius:8px;border:2px solid transparent;background-clip:padding-box;box-shadow:0 0 6px rgba(139,92,246,.55)}
 ::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#6db3ff,#a879ff);background-clip:padding-box;box-shadow:0 0 12px rgba(139,92,246,.85)}
 ::-webkit-scrollbar-corner{background:transparent}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
 html{background:var(--bg);overflow-x:hidden;max-width:100vw}
 body{overflow-x:hidden;max-width:100vw}
 body{margin:0;min-height:100vh;background:
@@ -309,13 +311,6 @@ button{font-family:inherit;cursor:pointer}
   <h3>Alışkanlık Ekle</h3>
   <input id="habitNameInput" placeholder="Örn. Diş fırçala">
   <div class="row"><button class="cancel" onclick="closeModal('habitModal')">İptal</button><button class="save" onclick="saveHabit()">Kaydet</button></div>
-</div></div>
-
-<!-- Koşu bandı haftalık hedef -->
-<div class="modal-bg" id="treadmillGoalModal"><div class="modal">
-  <h3>Haftalık Koşu Bandı Hedefi</h3>
-  <input id="treadmillGoalInput" type="number" min="1" placeholder="Örn. 3">
-  <div class="row"><button class="cancel" onclick="closeModal('treadmillGoalModal')">İptal</button><button class="save" onclick="saveTreadmillGoal()">Kaydet</button></div>
 </div></div>
 
 <!-- Genel onay -->
@@ -1068,7 +1063,19 @@ function computeWeightRoutineCoverage(){
 }
 function computeTreadmillGoal(){
   const weekDates = getWeekDates(todayStr());
-  const goal = state.treadmillWeeklyGoal || 3;
+  // Hedef sayısı artık manuel girilmiyor; geçmişte koşu bandı yapılan haftaların
+  // ortalama seans sayısından otomatik hesaplanıyor.
+  const weekMap = {};
+  state.workoutLog.forEach(e=>{
+    if(e.exercises.some(ex=>ex.type==='treadmill')){
+      const wk = isoWeekKey(e.date);
+      weekMap[wk] = weekMap[wk] || new Set();
+      weekMap[wk].add(e.date);
+    }
+  });
+  const weekKeys = Object.keys(weekMap);
+  const avg = weekKeys.length ? weekKeys.reduce((a,k)=>a+weekMap[k].size,0)/weekKeys.length : 3;
+  const goal = Math.max(1, Math.round(avg));
   const sessionDates = new Set();
   state.workoutLog.forEach(e=>{
     if(weekDates.includes(e.date) && e.exercises.some(ex=>ex.type==='treadmill')) sessionDates.add(e.date);
@@ -1079,16 +1086,6 @@ function getTreadmillLogs(){
   const logs = [];
   state.workoutLog.forEach(e=>{ e.exercises.forEach(ex=>{ if(ex.type==='treadmill' && ex.treadmill){ logs.push({date:e.date, ...ex.treadmill}); } }); });
   return logs;
-}
-function openTreadmillGoalModal(){
-  document.getElementById('treadmillGoalInput').value = state.treadmillWeeklyGoal || 3;
-  document.getElementById('treadmillGoalModal').classList.add('show');
-}
-function saveTreadmillGoal(){
-  const v = parseInt(document.getElementById('treadmillGoalInput').value, 10);
-  if(!v || v<1) return;
-  state.treadmillWeeklyGoal = v;
-  save(); closeModal('treadmillGoalModal'); renderStats();
 }
 function computeWeeklyVolume(weeks){
   weeks = weeks||8; const map={};
@@ -1135,7 +1132,7 @@ function renderStats(){
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
           ${svgRingChart(tmGoal.pct, 92, 9, ['#ff6a3d','#ffb020'])}
           <div style="font-size:12px;font-weight:700">🏃 Koşu Bandı</div>
-          <div class="muted" style="font-size:11px">${tmGoal.done}/${tmGoal.goal} bu hafta <button class="icon-btn" style="font-size:12px;padding:2px 4px" onclick="openTreadmillGoalModal()">✎</button></div>
+          <div class="muted" style="font-size:11px">${tmGoal.done}/${tmGoal.goal} bu hafta</div>
         </div>
       </div>
     </div>
