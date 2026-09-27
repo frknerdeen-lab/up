@@ -644,6 +644,25 @@ function syncTopbarHeight(){
 }
 window.addEventListener('resize', syncTopbarHeight);
 
+/* ---- Custom edge-swipe-to-go-back (this is a web page, not a native app, so the OS doesn't give us this gesture — we add our own) ---- */
+(function(){
+  const scroller = document.getElementById('appScroll');
+  const EDGE = 35, THRESHOLD = 90;
+  let sx = 0, sy = 0, tracking = false;
+  scroller.addEventListener('touchstart', e=>{
+    const t = e.touches[0];
+    tracking = t.clientX <= EDGE && currentTab==='workout' && workoutSubView==='detail';
+    sx = t.clientX; sy = t.clientY;
+  }, {passive:true});
+  scroller.addEventListener('touchend', e=>{
+    if(!tracking) return;
+    tracking = false;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - sx, dy = Math.abs(t.clientY - sy);
+    if(dx > THRESHOLD && dy < 60) backToHome();
+  }, {passive:true});
+})();
+
 /* ---- Custom pull-to-refresh (appScroll is not the document root, so native browser pull-to-refresh doesn't fire here) ---- */
 (function(){
   const scroller = document.getElementById('appScroll');
