@@ -112,6 +112,7 @@ button{font-family:inherit;cursor:pointer}
 .trow.done .setnum{background:var(--done);border:1px solid var(--done-border)}
 .trow.done input[type=number]{background:var(--done);border-color:var(--done-border)}
 .trow.done .check{background:var(--done);border-color:var(--done-border);color:var(--green)}
+.check.done{background:var(--done);border-color:var(--done-border);color:var(--green)}
 .add-set{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:11px;font-size:14px;font-weight:600;margin-top:4px}
 .tm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .tm-label{display:block;color:var(--muted);font-size:11px;margin-bottom:4px}
@@ -140,6 +141,13 @@ button{font-family:inherit;cursor:pointer}
 .theme-select{appearance:none;-webkit-appearance:none;-moz-appearance:none;width:100%;background:var(--card2) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%234d9fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>') no-repeat right 12px center;background-size:14px;border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px 34px 10px 12px;font-size:14px;font-family:inherit;cursor:pointer}
 .theme-select:hover,.theme-select:focus{border-color:var(--accent);box-shadow:var(--glow);outline:none}
 .theme-select option{background:#12141c;color:var(--text)}
+.measure-big{margin-bottom:6px}
+.measure-big-label{font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.measure-big-row{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.measure-big-value{font-size:34px;font-weight:800;color:var(--text);line-height:1}
+.measure-big-unit{font-size:16px;font-weight:600;color:var(--muted);margin-left:4px}
+.measure-delta{background:var(--card2);border:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px}
+.measure-chart-wrap{margin-top:14px;background:rgba(255,255,255,.02);border-radius:14px;padding:8px 4px}
 .modal .row{display:flex;gap:8px;margin-top:6px}
 .modal button.wide{padding:10px;border-radius:8px;border:none;font-weight:600;font-size:14px}
 .modal .row button{flex:1;padding:10px;border-radius:8px;border:none;font-weight:600;font-size:14px}
@@ -376,6 +384,12 @@ const ICONS = {
   calendar: '📅', history: '📜', timer: '⏱', save: '💾',
   back: '←', add: '➕', delete: '🗑', edit: '✎', close: '✕', check: '✓', play: '▶'
 };
+const TR_MONTHS_SHORT = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+function fmtShortDate(dateStr){
+  const parts = (dateStr||'').split('-').map(Number);
+  if(parts.length<3 || !parts[1]) return dateStr||'';
+  return `${parts[2]} ${TR_MONTHS_SHORT[parts[1]-1]}`;
+}
 const MEASURE_TYPES = [
   {key:'Kilo', unit:'kg'}, {key:'Boy', unit:'cm'}, {key:'Bel', unit:'cm'}, {key:'Kalça', unit:'cm'},
   {key:'Göğüs', unit:'cm'}, {key:'Sağ Kol', unit:'cm'}, {key:'Sol Kol', unit:'cm'}, {key:'Bacak', unit:'cm'}, {key:'Omuz', unit:'cm'}
@@ -391,7 +405,8 @@ function normalizeState(s){
     if(!Array.isArray(r.exercises)) r.exercises = [];
     r.exercises.forEach(ex=>{
       if(!Array.isArray(ex.sets)) ex.sets = [];
-      if(ex.type==='treadmill' && (!ex.treadmill || typeof ex.treadmill!=='object')) ex.treadmill = {speed:'',incline:'',duration:''};
+      if(ex.type==='treadmill' && (!ex.treadmill || typeof ex.treadmill!=='object')) ex.treadmill = {speed:'',incline:'',duration:'',done:false};
+      if(ex.type==='treadmill' && typeof ex.treadmill.done!=='boolean') ex.treadmill.done = false;
     });
   });
   if(!Array.isArray(s.workoutLog)) s.workoutLog = [];
@@ -798,10 +813,11 @@ function exerciseInner(ex){
         <button class="ex-menu-btn" onclick="deleteExercise('${ex.id}')">${ICONS.close}</button>
       </div>
       <textarea class="ex-notes" data-exid="${ex.id}" rows="2" placeholder="Buraya not ekleyin..." style="margin-top:6px" oninput="activeRoutine().exercises.find(x=>x.id==='${ex.id}').notes=this.value;save()">${esc(ex.notes||'')}</textarea>
-      <div class="tm-grid" style="margin-top:10px">
+      <div class="tm-grid" style="margin-top:10px;grid-template-columns:1fr 1fr 1fr auto;align-items:end">
         <div><label class="tm-label">Hız (km/h)</label><input type="number" step="0.1" placeholder="0" value="${t.speed}" onchange="updateTreadmill('${ex.id}','speed',this.value)"></div>
         <div><label class="tm-label">Eğim (%)</label><input type="number" step="0.5" placeholder="0" value="${t.incline}" onchange="updateTreadmill('${ex.id}','incline',this.value)"></div>
         <div><label class="tm-label">Süre (dk)</label><input type="number" placeholder="0" value="${t.duration}" onchange="updateTreadmill('${ex.id}','duration',this.value)"></div>
+        <button class="check ${t.done?'done':''}" style="height:38px" onclick="toggleTreadmillDone('${ex.id}')">✓</button>
       </div>`;
   }
   const videoBlock = ytId(ex.youtube)
@@ -846,6 +862,11 @@ function updateTreadmill(exId, field, val){
   const ex = activeRoutine().exercises.find(x=>x.id===exId);
   ex.treadmill[field] = val;
   save();
+}
+function toggleTreadmillDone(exId){
+  const ex = activeRoutine().exercises.find(x=>x.id===exId);
+  ex.treadmill.done = !ex.treadmill.done;
+  save(); render();
 }
 function getPrevTreadmill(name){
   const r = activeRoutine();
@@ -920,7 +941,7 @@ function toggleSession(){
 function logToday(){
   const r = activeRoutine(); const today = todayStr();
   const entryExercises = r.exercises.filter(ex=>{
-    if(ex.type==='treadmill') return ex.treadmill && (ex.treadmill.speed || ex.treadmill.duration);
+    if(ex.type==='treadmill') return ex.treadmill && ex.treadmill.done;
     return ex.sets.some(s=>s.done);
   }).map(ex=>{
     if(ex.type==='treadmill') return {name:ex.name, type:'treadmill', notes:ex.notes||'', treadmill:{speed:ex.treadmill.speed||0, incline:ex.treadmill.incline||0, duration:ex.treadmill.duration||0}, sets:[]};
@@ -946,7 +967,7 @@ function finishWorkout(){
   askConfirm('Antrenmanı bitirip kaydetmek istiyor musun?', ()=>{
     logToday();
     r.exercises.forEach(ex=>{
-      if(ex.type==='treadmill'){ ex.treadmill = {speed:'',incline:'',duration:''}; }
+      if(ex.type==='treadmill'){ ex.treadmill = {speed:'',incline:'',duration:'',done:false}; }
       else { ex.sets.forEach(s=>{ s.kg=''; s.reps=''; s.done=false; }); }
       ex.notes='';
     });
@@ -983,13 +1004,21 @@ function openHistory(){
 function svgLineChart(values, color){
   color = color || '#4d9fff';
   if(!values || values.length===0) return '<div class="empty" style="padding:20px 0">Henüz veri yok.</div>';
-  const w=560,h=140;
-  const max = Math.max(...values,1), min = Math.min(...values,0); const range = (max-min)||1;
-  const stepX = values.length>1 ? w/(values.length-1) : 0;
-  const pts = values.map((v,i)=>`${(i*stepX).toFixed(1)},${(h-((v-min)/range)*h).toFixed(1)}`).join(' ');
+  const w=560,h=140; const padX=14, padY=14; const plotW=w-padX*2, plotH=h-padY*2;
   const gid = 'lg'+Math.random().toString(36).slice(2,8);
+  if(values.length===1){
+    const x = w/2, y = h/2;
+    return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="overflow:visible">
+      <defs><filter id="${gid}d" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="4.5"/></filter></defs>
+      <line x1="${padX}" y1="${y}" x2="${w-padX}" y2="${y}" stroke="var(--border)" stroke-dasharray="4 5" stroke-width="1"/>
+      <circle cx="${x}" cy="${y}" r="6" fill="#dbeaff" opacity=".9" filter="url(#${gid}d)"/><circle cx="${x}" cy="${y}" r="3" fill="${color}"/>
+    </svg>`;
+  }
+  const max = Math.max(...values,1), min = Math.min(...values,0); const range = (max-min)||1;
+  const stepX = plotW/(values.length-1);
+  const pts = values.map((v,i)=>`${(padX+i*stepX).toFixed(1)},${(padY+plotH-((v-min)/range)*plotH).toFixed(1)}`).join(' ');
   const dots = values.map((v,i)=>{
-    const x=(i*stepX).toFixed(1), y=(h-((v-min)/range)*h).toFixed(1);
+    const x=(padX+i*stepX).toFixed(1), y=(padY+plotH-((v-min)/range)*plotH).toFixed(1);
     return `<circle cx="${x}" cy="${y}" r="6" fill="#dbeaff" opacity=".9" filter="url(#${gid}d)"/><circle cx="${x}" cy="${y}" r="3" fill="${color}"/>`;
   }).join('');
   return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="overflow:visible">
@@ -1230,10 +1259,89 @@ function liveMeasurePreview(type, val){
   const sel = document.getElementById('measureTypeSelect');
   if(!sel || sel.value !== type) return;
   const today = todayStr();
-  const past = state.measurements.filter(m=>m.type===type && m.date!==today).sort((a,b)=>a.date.localeCompare(b.date)).map(e=>e.value);
+  const unit = (MEASURE_TYPES.find(t=>t.key===type)||{}).unit||'';
+  const past = state.measurements.filter(m=>m.type===type && m.date!==today).sort((a,b)=>a.date.localeCompare(b.date)).map(e=>({date:e.date, value:e.value}));
   const v = parseFloat(val);
-  if(!isNaN(v)) past.push(v);
-  document.getElementById('measureChart').innerHTML = svgLineChart(past, 'var(--green)');
+  if(!isNaN(v)) past.push({date:today, value:v});
+  document.getElementById('measureChart').innerHTML = svgMeasureChart(past, unit);
+}
+function svgMeasureChart(entries, unit){
+  unit = unit || '';
+  if(!entries || entries.length===0) return '<div class="empty" style="padding:30px 0">Henüz veri yok.</div>';
+  const shown = entries.slice(-8);
+  const n = shown.length;
+  const values = shown.map(e=>e.value);
+  const latest = values[n-1];
+  const prev = n>1 ? values[n-2] : latest;
+  const delta = Math.round((latest-prev)*100)/100;
+  const deltaLabel = n>1 ? `<span class="measure-delta">${delta>0?'+':''}${delta} ${unit}</span>` : '';
+  const head = `
+    <div class="measure-big">
+      <div class="measure-big-label">SON ${n} ÖLÇÜM</div>
+      <div class="measure-big-row">
+        <div class="measure-big-value">${latest}<span class="measure-big-unit">${unit}</span></div>
+        ${deltaLabel}
+      </div>
+    </div>`;
+
+  const w=560,h=190; const padX=30, padTop=28, padBottom=26; const plotW=w-padX*2, plotH=h-padTop-padBottom;
+  const gid = 'mc'+Math.random().toString(36).slice(2,8);
+
+  if(n===1){
+    const x=w/2, y=padTop+plotH/2;
+    const chart = `<svg viewBox="0 0 ${w} ${h}" width="100%" style="overflow:visible">
+      <defs><filter id="${gid}d" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="4.5"/></filter></defs>
+      <line x1="${padX}" y1="${y}" x2="${w-padX}" y2="${y}" stroke="var(--border)" stroke-dasharray="4 5" stroke-width="1"/>
+      <circle cx="${x}" cy="${y}" r="7" fill="#e4d9ff" opacity=".9" filter="url(#${gid}d)"/>
+      <circle cx="${x}" cy="${y}" r="4" fill="#fff"/>
+      <text x="${x}" y="${y-16}" text-anchor="middle" font-size="13" font-weight="700" fill="var(--text)">${values[0]}</text>
+      <text x="${x}" y="${h-6}" text-anchor="middle" font-size="10" fill="var(--muted)">${fmtShortDate(shown[0].date)}</text>
+    </svg>`;
+    return `${head}<div class="measure-chart-wrap">${chart}</div>`;
+  }
+
+  const rawMax = Math.max(...values), rawMin = Math.min(...values);
+  const rawRange = (rawMax-rawMin) || Math.max(1, Math.abs(rawMax)*0.1) || 1;
+  const pad = rawRange*0.3;
+  const chartMax = rawMax+pad, chartMin = rawMin-pad; const chartRange = (chartMax-chartMin)||1;
+
+  const stepX = plotW/(n-1);
+  const xs = values.map((v,i)=>padX+i*stepX);
+  const ys = values.map(v=>padTop+plotH-((v-chartMin)/chartRange)*plotH);
+
+  const linePts = xs.map((x,i)=>`${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+  const areaPts = `${xs[0].toFixed(1)},${(padTop+plotH).toFixed(1)} ${linePts} ${xs[n-1].toFixed(1)},${(padTop+plotH).toFixed(1)}`;
+
+  const showLabelIdx = new Set([0, n-1, Math.floor((n-1)/2)]);
+  const dots = xs.map((x,i)=>{
+    const y=ys[i]; const isLast = i===n-1;
+    const label = showLabelIdx.has(i) ? `<text x="${x.toFixed(1)}" y="${(y-14).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--text)">${values[i]}</text>` : '';
+    const dateStep = Math.max(1, Math.ceil(n/5));
+    const dateLabel = (i===0||i===n-1||i%dateStep===0) ? `<text x="${x.toFixed(1)}" y="${h-6}" text-anchor="middle" font-size="10" fill="var(--muted)">${fmtShortDate(shown[i].date)}</text>` : '';
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${isLast?7:5}" fill="#e4d9ff" opacity="${isLast?0.9:0.55}" filter="url(#${gid}d)"/>
+      <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${isLast?4.5:3.2}" fill="${isLast?'#fff':'#8b5cf6'}"/>
+      ${label}${dateLabel}`;
+  }).join('');
+
+  const gridTop=padTop, gridBottom=padTop+plotH;
+  const chart = `<svg viewBox="0 0 ${w} ${h}" width="100%" style="overflow:visible">
+    <defs>
+      <linearGradient id="${gid}f" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0"/>
+      </linearGradient>
+      <filter id="${gid}l" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5"/></filter>
+      <filter id="${gid}d" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="4.5"/></filter>
+    </defs>
+    <line x1="${padX}" y1="${gridTop}" x2="${w-padX}" y2="${gridTop}" stroke="var(--border)" stroke-dasharray="4 5" stroke-width="1"/>
+    <line x1="${padX}" y1="${gridBottom}" x2="${w-padX}" y2="${gridBottom}" stroke="var(--border)" stroke-dasharray="4 5" stroke-width="1"/>
+    <text x="${w-padX}" y="${gridTop-6}" text-anchor="end" font-size="10" fill="var(--muted)">${chartMax.toFixed(1)}</text>
+    <text x="${w-padX}" y="${(gridBottom+14).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${chartMin.toFixed(1)}</text>
+    <polygon points="${areaPts}" fill="url(#${gid}f)"/>
+    <polyline points="${linePts}" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#${gid}l)"/>
+    ${dots}
+  </svg>`;
+  return `${head}<div class="measure-chart-wrap">${chart}</div>`;
 }
 function saveAllMeasurements(ev){
   const today = todayStr();
@@ -1261,8 +1369,9 @@ function renderMeasureTypeSelect(){
 function renderMeasureChart(){
   const sel = document.getElementById('measureTypeSelect');
   const type = sel.value; sel.dataset.selected = type;
+  const unit = (MEASURE_TYPES.find(t=>t.key===type)||{}).unit||'';
   const entries = state.measurements.filter(m=>m.type===type).sort((a,b)=>a.date.localeCompare(b.date));
-  document.getElementById('measureChart').innerHTML = svgLineChart(entries.map(e=>e.value), 'var(--green)');
+  document.getElementById('measureChart').innerHTML = svgMeasureChart(entries.map(e=>({date:e.date, value:e.value})), unit);
   document.getElementById('measureList').innerHTML = entries.slice().reverse().map(e=>`<div class="hist-row"><span>${e.date}</span><span>${e.value}${e.unit||''}</span><button class="del-set" onclick="deleteMeasurement('${e.id}')">×</button></div>`).join('') || '<div class="empty" style="padding:10px 0">Henüz kayıt yok.</div>';
 }
 function deleteMeasurement(id){ state.measurements = state.measurements.filter(m=>m.id!==id); save(); renderMeasureTypeSelect(); renderMeasureChart(); }
