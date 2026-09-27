@@ -88,6 +88,7 @@ button{font-family:inherit;cursor:pointer}
 /* ============ EGZERSİZ / SET TABLOSU ============ */
 .exercise{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:14px;margin-bottom:14px}
 .exercise.superset{border-color:#ff6a3d;box-shadow:0 0 18px rgba(255,106,61,.2)}
+.exercise.treadmill-ex{border-color:#4d9fff;box-shadow:0 0 18px rgba(77,159,255,.22)}
 .superset-label{background:linear-gradient(135deg,#ff3d3d,#ffb020);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
 .superset-divider{height:1px;background:var(--border);margin:16px 0}
 .ex-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
@@ -136,6 +137,9 @@ button{font-family:inherit;cursor:pointer}
 .modal{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:20px;width:100%;max-width:360px;position:relative}
 .modal h3{margin:0 0 14px;font-size:16px}
 .modal input,.modal select{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px;font-size:14px;margin-bottom:10px;font-family:inherit}
+.theme-select{appearance:none;-webkit-appearance:none;-moz-appearance:none;width:100%;background:var(--card2) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%234d9fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>') no-repeat right 12px center;background-size:14px;border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px 34px 10px 12px;font-size:14px;font-family:inherit;cursor:pointer}
+.theme-select:hover,.theme-select:focus{border-color:var(--accent);box-shadow:var(--glow);outline:none}
+.theme-select option{background:#12141c;color:var(--text)}
 .modal .row{display:flex;gap:8px;margin-top:6px}
 .modal button.wide{padding:10px;border-radius:8px;border:none;font-weight:600;font-size:14px}
 .modal .row button{flex:1;padding:10px;border-radius:8px;border:none;font-weight:600;font-size:14px}
@@ -887,7 +891,7 @@ function render(){
       <button class="icon-btn" style="font-size:14px;padding:3px 7px;${gi===0?'opacity:.3':''}" onclick="moveExerciseGroup('${anchorId}',-1)">▲</button>
       <button class="icon-btn" style="font-size:14px;padding:3px 7px;${gi===groups.length-1?'opacity:.3':''}" onclick="moveExerciseGroup('${anchorId}',1)">▼</button>
     </div>`;
-    if(items.length===1) return `<div class="exercise">${moveBtns}${exerciseInner(items[0])}</div>`;
+    if(items.length===1) return `<div class="exercise${items[0].type==='treadmill'?' treadmill-ex':''}">${moveBtns}${exerciseInner(items[0])}</div>`;
     return `<div class="exercise superset">
       ${moveBtns}
       <div class="superset-label">⚡ Süper Set</div>
@@ -1165,7 +1169,7 @@ function renderStats(){
       <table class="measure-table" id="measureTable"></table>
       <button class="small-btn" style="margin-top:10px;width:100%" onclick="saveAllMeasurements(event)">${ICONS.save} Tümünü Kaydet</button>
       <div style="margin-top:18px">
-        <select id="measureTypeSelect" onchange="renderMeasureChart()"></select>
+        <select id="measureTypeSelect" class="theme-select" onchange="renderMeasureChart()"></select>
         <div id="measureChart"></div>
         <div id="measureList"></div>
       </div>
