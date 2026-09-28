@@ -629,6 +629,14 @@ function backToHome(){
   workoutSubView = 'home';
   renderApp();
 }
+function safeRun(fn, viewId){
+  try{ fn(); }
+  catch(err){
+    console.error(err);
+    const el = document.getElementById(viewId);
+    if(el) el.innerHTML = `<div class="stat-section" style="border-color:#ef4444"><div style="color:#ef4444;font-weight:700;margin-bottom:8px">Bir hata oldu, bu ekranı gösteremedim.</div><div class="muted" style="font-size:12px;white-space:pre-wrap;word-break:break-word">${esc(err.message||String(err))}</div></div>`;
+  }
+}
 function renderApp(){
   renderTopbar();
   renderBottomNav();
@@ -636,10 +644,10 @@ function renderApp(){
   document.getElementById('view-workout').style.display = (currentTab==='workout' && workoutSubView==='detail') ? 'block':'none';
   document.getElementById('view-stats').style.display = currentTab==='stats' ? 'block':'none';
   document.getElementById('view-daily').style.display = currentTab==='daily' ? 'block':'none';
-  if(currentTab==='workout' && workoutSubView==='home') renderHome();
-  if(currentTab==='workout' && workoutSubView==='detail') render();
-  if(currentTab==='stats') renderStats();
-  if(currentTab==='daily') renderDaily();
+  if(currentTab==='workout' && workoutSubView==='home') safeRun(renderHome, 'view-home');
+  if(currentTab==='workout' && workoutSubView==='detail') safeRun(render, 'exerciseList');
+  if(currentTab==='stats') safeRun(renderStats, 'view-stats');
+  if(currentTab==='daily') safeRun(renderDaily, 'view-daily');
 }
 function syncTopbarHeight(){
   const bar = document.getElementById('topbar');
