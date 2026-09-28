@@ -294,6 +294,7 @@ button{font-family:inherit;cursor:pointer}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 
 <div id="passGate" style="position:fixed;inset:0;z-index:9999;background:#05060b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center">
   <div id="passLoading" style="color:#9aa2b6;font-size:13px">Yükleniyor...</div>
@@ -483,6 +484,36 @@ button{font-family:inherit;cursor:pointer}
   </div>
 </div></div>
 
+<!-- Hatırlatıcılar -->
+<div class="modal-bg" id="remindersModal"><div class="modal hist-modal sticky-header">
+  <div class="hist-modal-header">
+    <button class="close-x" onclick="closeModal('remindersModal')">✕</button>
+    <h3>Reminders</h3>
+  </div>
+  <div class="hist-modal-body">
+    <div id="pushPermissionBox" style="margin-bottom:14px"></div>
+    <div id="remindersList"></div>
+    <button class="video-thumb" style="width:100%;margin-top:10px;justify-content:center" onclick="openReminderForm()"><span class="ic-plus"></span> Add Reminder</button>
+  </div>
+</div></div>
+
+<!-- Hatırlatıcı ekle/düzenle -->
+<div class="modal-bg" id="reminderFormModal"><div class="modal">
+  <h3 id="reminderFormTitle">Add Reminder</h3>
+  <label class="tm-label">Type</label>
+  <select id="reminderType">
+    <option value="time">Fixed time (e.g. drink water)</option>
+    <option value="workoutDay">On scheduled workout days</option>
+    <option value="missedDay">If workout not marked done by this time</option>
+  </select>
+  <label class="tm-label">Time</label>
+  <input type="time" id="reminderTime" value="19:00">
+  <label class="tm-label">Message</label>
+  <input id="reminderMessage" placeholder="e.g. Drink some water">
+  <div class="hint">Checked on the server every few minutes — works even when the app is closed.</div>
+  <div class="row"><button class="cancel" onclick="closeModal('reminderFormModal')">Cancel</button><button class="save" onclick="saveReminder()"><span class="ic-save"></span>Save</button></div>
+</div></div>
+
 <!-- Choose what to add -->
 <div class="modal-bg" id="addTypeModal"><div class="modal">
   <h3>What would you like to add?</h3>
@@ -540,6 +571,13 @@ function normalizeState(s){
   if(!Array.isArray(s.dailyHabits)) s.dailyHabits = [];
   if(!s.dailyLog || typeof s.dailyLog !== 'object' || Array.isArray(s.dailyLog)) s.dailyLog = {};
   if(!Array.isArray(s.notes)) s.notes = [];
+  if(!Array.isArray(s.reminders)) s.reminders = [];
+  s.reminders.forEach(rm=>{
+    if(typeof rm.enabled !== 'boolean') rm.enabled = true;
+    if(!rm.time) rm.time = '19:00';
+    if(!rm.message) rm.message = '';
+    if(!['time','workoutDay','missedDay'].includes(rm.type)) rm.type = 'time';
+  });
   if(!s.treadmillWeeklyGoal) s.treadmillWeeklyGoal = 3;
   if(!Array.isArray(s.weekBlocks)){
     // eski tekli-hafta verisini kayıp vermeden yeni çoklu-hafta yapısına taşı
@@ -582,6 +620,114 @@ function signOutApp(){
     location.reload();
   }, 'Sign out');
 }
+
+/* =========================================================================
+   HATIRLATICILAR / PUSH BİLDİRİM
+   ========================================================================= */
+const FCM_VAPID_KEY = 'BEXjoIpMVBoh6pyt_IQBbU7hyR_7DW6sA94NUBFVGnN6gzp75KgvnjoFwP0KeWx5T9H3FXvDTMvtJG0gplvVTnE';
+const REMINDER_TYPE_LABELS = { time: 'Fixed time', workoutDay: 'On workout days', missedDay: "If not marked done" };
+let editingReminderId = null;
+
+async function registerFcmToken(){
+  try{
+    if(!('serviceWorker' in navigator) || !('Notification' in window)) return null;
+    if(Notification.permission !== 'granted') return null;
+    const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    const messaging = firebase.messaging();
+    const token = await messaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: reg });
+    if(token){
+      const url = await authedUrl(`users/${currentUser.uid}/fcmTokens`);
+      await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token, updatedAt: Date.now(), ua: navigator.userAgent.slice(0,120) }) });
+    }
+    return token;
+  }catch(e){ console.error('fcm token registration failed', e); return null; }
+}
+async function enablePushNotifications(){
+  try{
+    if(!('serviceWorker' in navigator) || !('Notification' in window)){
+      alert('This browser does not support push notifications.');
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    renderPushPermissionBox();
+    if(perm === 'granted') await registerFcmToken();
+  }catch(e){ console.error('enable push failed', e); }
+}
+function renderPushPermissionBox(){
+  const box = document.getElementById('pushPermissionBox');
+  if(!box) return;
+  const supported = ('serviceWorker' in navigator) && ('Notification' in window);
+  if(!supported){
+    box.innerHTML = `<div class="hint">This browser doesn't support push notifications.</div>`;
+    return;
+  }
+  const perm = Notification.permission;
+  if(perm === 'granted'){
+    box.innerHTML = `<div class="hint" style="color:var(--accent)">✓ Notifications enabled on this device</div>`;
+  } else if(perm === 'denied'){
+    box.innerHTML = `<div class="hint" style="color:var(--danger)">Notifications blocked — enable them in your browser/site settings.</div>`;
+  } else {
+    box.innerHTML = `<button class="video-thumb" style="width:100%;justify-content:center" onclick="enablePushNotifications()">🔔 Enable notifications on this device</button>`;
+  }
+}
+function openRemindersModal(){
+  renderPushPermissionBox();
+  renderRemindersList();
+  document.getElementById('remindersModal').classList.add('show');
+}
+function renderRemindersList(){
+  const list = document.getElementById('remindersList');
+  const reminders = state.reminders || [];
+  if(!reminders.length){
+    list.innerHTML = `<div class="hint">No reminders yet.</div>`;
+    return;
+  }
+  list.innerHTML = reminders.map(rm => `
+    <div style="display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:${rm.enabled?'var(--text)':'var(--muted)'}">${esc(rm.time)} · ${esc(REMINDER_TYPE_LABELS[rm.type]||rm.type)}</div>
+        <div style="font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(rm.message||'')}</div>
+      </div>
+      <button class="icon-btn" title="${rm.enabled?'Disable':'Enable'}" onclick="toggleReminder('${rm.id}')" style="font-size:16px;padding:4px 6px">${rm.enabled?'⏸':'▶'}</button>
+      <button class="icon-btn" title="Edit" onclick="openReminderForm('${rm.id}')" style="font-size:14px;padding:4px 6px">${ICONS.edit}</button>
+      <button class="icon-btn" title="Delete" onclick="deleteReminder('${rm.id}')" style="font-size:14px;padding:4px 6px">${ICONS.delete}</button>
+    </div>`).join('');
+}
+function openReminderForm(id){
+  editingReminderId = id || null;
+  const rm = id ? (state.reminders||[]).find(r=>r.id===id) : null;
+  document.getElementById('reminderFormTitle').textContent = rm ? 'Edit Reminder' : 'Add Reminder';
+  document.getElementById('reminderType').value = rm ? rm.type : 'time';
+  document.getElementById('reminderTime').value = rm ? rm.time : '19:00';
+  document.getElementById('reminderMessage').value = rm ? (rm.message||'') : '';
+  document.getElementById('reminderFormModal').classList.add('show');
+}
+function saveReminder(){
+  const type = document.getElementById('reminderType').value;
+  const time = document.getElementById('reminderTime').value || '19:00';
+  const message = document.getElementById('reminderMessage').value.trim();
+  if(!message){ return; }
+  if(!Array.isArray(state.reminders)) state.reminders = [];
+  if(editingReminderId){
+    const rm = state.reminders.find(r=>r.id===editingReminderId);
+    if(rm){ rm.type = type; rm.time = time; rm.message = message; }
+  } else {
+    state.reminders.push({ id: uid(), type, time, message, enabled: true });
+  }
+  save(); closeModal('reminderFormModal'); renderRemindersList();
+}
+function toggleReminder(id){
+  const rm = (state.reminders||[]).find(r=>r.id===id);
+  if(!rm) return;
+  rm.enabled = !rm.enabled;
+  save(); renderRemindersList();
+}
+function deleteReminder(id){
+  askConfirm('Delete this reminder?', ()=>{
+    state.reminders = (state.reminders||[]).filter(r=>r.id!==id);
+    save(); renderRemindersList();
+  });
+}
 let dbReady = false, authReady = false, appStarted = false;
 function tryStartApp(){
   if(dbReady && authReady && !appStarted){
@@ -589,6 +735,7 @@ function tryStartApp(){
     renderApp();
     pullRemote();
     setInterval(pullRemote, 15000);
+    registerFcmToken(); // silently re-registers if permission was already granted before
   }
 }
 const dbReq = indexedDB.open('heavyVideos', 1);
@@ -812,6 +959,7 @@ function renderTopbar(){
       <span class="muted" style="font-size:10px">v${APP_VERSION}</span>
       <span id="syncStatus" style="font-size:11px;font-weight:600;color:var(--muted)"></span>
     </div>
+    <button class="icon-btn" title="Reminders" onclick="openRemindersModal()" style="font-size:15px;padding:4px 6px">🔔</button>
     <button class="icon-btn" title="Sign out" onclick="signOutApp()" style="font-size:15px;padding:4px 6px">⏻</button>
   </div>`;
   if(currentTab==='workout' && workoutSubView==='detail'){
