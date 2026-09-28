@@ -45,8 +45,7 @@ body{margin:0;height:100vh;height:100dvh;overflow-y:hidden;display:flex;flex-dir
 .ptr-spinner.spin{animation:ptrspin .6s linear infinite}
 @keyframes ptrspin{to{transform:rotate(360deg)}}
 button{font-family:inherit;cursor:pointer}
-.stat-card,.stat-section,.routine-card,.habit-row,.modal{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 8px 28px rgba(0,0,0,.35)}
-.exercise{box-shadow:0 8px 28px rgba(0,0,0,.35)}
+.exercise,.stat-card,.stat-section,.routine-card,.habit-row,.modal{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 8px 28px rgba(0,0,0,.35)}
 .container{padding:14px 12px;max-width:640px;margin:0 auto}
 .empty{text-align:center;color:var(--muted);padding:40px 20px;font-size:14px}
 .muted{color:var(--muted);font-weight:400}
@@ -1009,6 +1008,14 @@ function saveVideo(){
   save(); closeModal('vidModal'); render();
 }
 function toggleVideo(exId){
+  const ex = activeRoutine().exercises.find(x=>x.id===exId);
+  const did = driveId(ex.youtube);
+  if(did){
+    // Google Drive's embedded /preview player is buggy inside a scrollable mobile iframe
+    // (controls jump to the top, video shifts). Opening it as its own full page avoids that entirely.
+    window.open('https://drive.google.com/file/d/'+did+'/view', '_blank');
+    return;
+  }
   const frame = document.getElementById('frame-'+exId);
   const btn = document.getElementById('vidbtn-'+exId);
   const isOpen = frame.style.display === 'block';
@@ -1017,7 +1024,6 @@ function toggleVideo(exId){
     frame.innerHTML = '';
     btn.textContent = ICONS.play+' Watch Video';
   } else {
-    const ex = activeRoutine().exercises.find(x=>x.id===exId);
     const src = videoEmbedUrl(ex.youtube);
     frame.innerHTML = src
       ? `<iframe src="${src}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`
@@ -1085,9 +1091,10 @@ function exerciseInner(ex, moveHtml){
         <button class="check ${t.done?'done':''}" style="height:38px" onclick="toggleTreadmillDone('${ex.id}')">✓</button>
       </div>`;
   }
+  const isDriveVideo = !!driveId(ex.youtube);
   const videoBlock = videoEmbedUrl(ex.youtube)
     ? `<div style="display:flex;align-items:center;gap:6px">
-         <button class="video-thumb" id="vidbtn-${ex.id}" onclick="toggleVideo('${ex.id}')" style="flex:1">${ICONS.play} Watch Video</button>
+         <button class="video-thumb" id="vidbtn-${ex.id}" onclick="toggleVideo('${ex.id}')" style="flex:1">${ICONS.play} ${isDriveVideo?'Watch Video (opens Drive)':'Watch Video'}</button>
          <button class="icon-btn" style="font-size:12px;padding:5px 8px" title="Change Video" onclick="openVideoModal('${ex.id}')">${ICONS.edit}</button>
        </div>
        <div class="video-frame" id="frame-${ex.id}" style="display:none"></div>`
