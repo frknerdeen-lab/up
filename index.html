@@ -1019,7 +1019,7 @@ function toggleVideo(exId){
   } else {
     const src = videoEmbedUrl(ex.youtube);
     frame.innerHTML = src
-      ? `<iframe src="${src}" width="100%" height="220" allow="autoplay; encrypted-media; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen frameborder="0"></iframe>`
+      ? `<iframe src="${src}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen frameborder="0"></iframe>`
       : '<div style="padding:14px;color:var(--muted);font-size:13px">No video ID found in this link. Check the link.</div>';
     frame.style.display = 'block';
     btn.textContent = '▲ Close';
