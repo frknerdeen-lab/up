@@ -90,6 +90,12 @@ button{font-family:inherit;cursor:pointer}
 .routine-card-sub{color:var(--muted);font-size:13px;margin-top:4px}
 .routine-card.off-day{opacity:.55;cursor:default}
 .routine-card.off-day:hover{border-color:var(--border);box-shadow:0 8px 28px rgba(0,0,0,.35)}
+.routine-card.completed-day{opacity:.6;cursor:default;border-color:#22c55e}
+.routine-card.completed-day:hover{border-color:#22c55e;box-shadow:0 8px 28px rgba(0,0,0,.35)}
+.routine-card.today-day{box-shadow:0 0 0 2px #ffb020,0 8px 28px rgba(0,0,0,.35)}
+.routine-card.today-day:hover{box-shadow:0 0 0 2px #ffb020,var(--glow),0 8px 28px rgba(0,0,0,.35)}
+.routine-card.completed-day.today-day{box-shadow:0 0 0 2px #ffb020,0 8px 28px rgba(0,0,0,.35);border-color:#22c55e}
+.routine-card.completed-day.today-day:hover{box-shadow:0 0 0 2px #ffb020,0 8px 28px rgba(0,0,0,.35)}
 .week-cards-wrap{display:flex;flex-direction:column;gap:14px}
 .add-tile{width:44px;height:44px;flex-shrink:0;background:var(--card);border:1.5px dashed var(--accent);color:var(--accent);border-radius:12px;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-left:auto}
 .section-label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin:4px 0 10px;font-weight:700}
@@ -145,7 +151,7 @@ button{font-family:inherit;cursor:pointer}
 .superset-divider{height:1px;background:var(--border);margin:16px 0}
 .ex-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ex-name{color:var(--accent);font-size:16px;font-weight:700;background:none;border:none;font-family:inherit;padding:0;width:100%}
-.ex-menu-btn{background:none;border:none;color:var(--muted);font-size:18px;padding:4px 8px}
+.ex-menu-btn{background:none;border:none;color:var(--muted);font-size:18px;padding:4px 8px;display:flex;align-items:center;justify-content:center}
 .move-btns{display:flex;flex-direction:column;gap:1px;flex-shrink:0}
 .move-btn{background:none;border:none;color:var(--muted);font-size:10px;line-height:1;padding:2px 4px;border-radius:4px}
 .move-btn:hover{background:var(--card2);color:var(--accent)}
@@ -257,6 +263,8 @@ button{font-family:inherit;cursor:pointer}
 /* ============ İSTATİSTİK PANELİ ============ */
 .stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:20px;width:100%;max-width:100%}
 .stat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;text-align:center;min-width:0;overflow:hidden}
+.tm-metric-card{transition:border-color .15s,box-shadow .15s}
+.tm-metric-card.active{border-color:#ff6a3d;box-shadow:0 0 0 1px #ff6a3d inset}
 .stat-card-val{font-size:22px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .stat-card-label{color:var(--muted);font-size:12px;margin-top:4px}
 .stat-section{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px;margin-bottom:14px}
@@ -452,7 +460,8 @@ button{font-family:inherit;cursor:pointer}
 const ICONS = {
   workoutTab: "<img src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAABO9JREFUeNrs3f1xE0cYB2CdhwLUQeQORAU+deBUEKkCmwqwK3CowEoFUQfIFcQdWHTgDsQuLINsnOgjs6vV3fPM3Bx/Aat339++Jw4YDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACBoavrNrNfrUbhdhusiXONwjU70c12G6zFcD/HHTdM822oH7YdhuLUb+6E90aWsNvbDIuyHlQB4WehpuF2lIndNbP5FuG5rKnzljR+D/2M6DIYdXGIMg09hP8x7HQCh0DHR70/4pN/XXBDs1PjTniw57oNZ2A/LXgVAGu3uelTo1xPBhxrSv7Lmn6Y9Mezh8udpTzx3PgBSyv/d0XF/r6KHgs+0/rc9cd/Tw+D1Y8HvpafDpnChY9N/7mnKCwHNv8t0OAl74rFzAZDG/ifNLwQ0/9YQOC/1OHBWcGFO/rdNQyNc97D5rzX/m4apVwadCYBQ7BvP/P/pLj0e9aX541rvlP1fjVPPnP4jQPrS70lNt4ovDE16EgDxhGuVfKvz3F8KlpgA7tVxJ216L6LrzX+p+evpnSZzsZ3+pgCnf8VTQO4J4Er99p4Cxh1u/rHmr6uHcgfApfrt7Q9ro1QPZQuAlPYj9dt/CrA2NoxyToVnil2dsbVRqpdyBsBv6nbw9NRaEyV6KWcASHuovJfOfLZVGloTJQgAz8rWJAAAAQAIAEAAAAIAEACAAAAEACAAAAEACABAAAACABAAgAAA6vPOR1Cli1L/NVTJNSmrAGA37cA/qopHAEAAAAIAEACAAAAEACAAAAEACABAAAACABAAgAAABAAgAEAAAAIAEACAAAAEACAAAAEACABAAAACABAAgAAABAAgAAABAAgAQAAAAgAQAIAAAAQAIACA/N75CKq0DNdDx9Z0Ea5WaQUA2z00TXPTpQWt1+sbAeARABAAgAAABAAgAAABAAgAQAAAAgAQAIAAAAQAIAAAAQAIAEAAnLhlB9f0qKwCgP569hH0KwAkPlTeSzkD4Iu6HaZpmqU1UaKXcgaAgpucTIWV91K2AAiJH4u9UjvB6VD4X1apl05uAogW6re3v6yNUj3U5PzJ1+v1KNye1HD3EzKk/aTLCwx74vPAPw++j/OwJ7JN0lkngPQbN/bt7tYaeXUgZH2MbnKvwBTg9DcF1Hn6l/gO4McUIPW3+2CtbE5KuZu/yASwkfr/hNtYXd9uiFDsP/u04LAfrsPtTunf9Bj2w/sSv1DJABimR4Gh+r4wD8We9XHhYU/ch9vUFnjhOY3+RV6dLvZ3AdKCJgPvhGv+n3sirn1uG7xo/kmp5i8aAKng8YWGONp4I6znzS8Efh37Y2/kfOnn6AGQCr5Kk0Bfix7Tfab5fwmBWY+nw3k6+VfFP/sjPwO24RafA0c9KvTtMQp9It8JxH3wsUffC6zSYbA8WvhWUvhY8KtBN/+UIJ5qC41/UBBcDrr5pXEc8z+F/XD0KbipsPCx6BcpDE51MlimIj8Mvr/g44vPw/ZDbP52Yz+0J3zS/9gPCwcBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1fkqwAA04C5ONmFndQAAAABJRU5ErkJggg==' class='nav-ic-img'>", statsTab: "<img src='data:image/png;base64,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' class='nav-ic-img'>", dailyTab: "<img src='data:image/png;base64,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' class='nav-ic-img'>", notesTab: '📝',
   calendar: '📅', history: '📜', timer: '⏱', save: "<span class='ic-save'></span>",
-  back: '←', add: "<span class='ic-plus'></span>", delete: "<span class='ic-delete'></span>", edit: "<span class='ic-edit'></span>", close: "<span class='ic-delete'></span>", check: '✓', play: '▶'
+  back: '←', add: "<span class='ic-plus'></span>", delete: "<span class='ic-delete'></span>", edit: "<span class='ic-edit'></span>", close: "<span class='ic-delete'></span>", check: '✓', play: '▶',
+  note: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;flex-shrink:0" xmlns="http://www.w3.org/2000/svg"><path d="M7 3h8l4 4v14H7V3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M15 3v4h4" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9.5 12h6M9.5 15.5h4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`
 };
 const TR_MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function fmtShortDate(dateStr){
@@ -755,10 +764,14 @@ function renderHome(){
   renderWeekCards(el);
 }
 function renderOneWeekBlock(block){
+  const weekDates = getWeekDates(todayStr());
+  const todayD = todayStr();
   const dayCards = DAY_NAMES.map((name,i)=>{
+    const isToday = weekDates[i]===todayD;
+    const todayCls = isToday ? 'today-day' : '';
     const slot = block.plan[i];
     if(slot===null || slot===undefined){
-      return `<div class="routine-card pending-day">
+      return `<div class="routine-card pending-day ${todayCls}">
         <div class="day-row">
           <span class="day-label">${name}</span>
         </div>
@@ -769,7 +782,7 @@ function renderOneWeekBlock(block){
       </div>`;
     }
     if(slot==='OFF' || !state.routines.find(x=>x.id===slot)){
-      return `<div class="routine-card off-day">
+      return `<div class="routine-card off-day ${todayCls}">
         <div class="day-row">
           <span class="day-label">${name}</span>
           <button class="day-add-btn" onclick="event.stopPropagation();addWorkoutForDay('${block.id}',${i})" title="Add workout">${ICONS.add}</button>
@@ -781,7 +794,17 @@ function renderOneWeekBlock(block){
     const logs = state.workoutLog.filter(e=>e.routineId===r.id).sort((a,b)=>a.date.localeCompare(b.date));
     const last = logs[logs.length-1];
     const sub = (last ? 'Last workout: '+last.date : 'Not done yet') + ' · ' + r.exercises.length + ' exercises';
-    return `<div class="routine-card" onclick="openRoutine('${r.id}')">
+    const isCompleted = state.workoutLog.some(e=>e.routineId===r.id && e.date===weekDates[i]);
+    if(isCompleted){
+      return `<div class="routine-card completed-day ${todayCls}">
+        <div class="day-row">
+          <span class="day-label">${name}</span>
+          <button class="day-add-btn" onclick="event.stopPropagation();openRoutine('${r.id}')" title="Edit">${ICONS.add}</button>
+        </div>
+        <div class="routine-card-sub">Done · ${esc(r.name)}</div>
+      </div>`;
+    }
+    return `<div class="routine-card ${todayCls}" onclick="openRoutine('${r.id}')">
       <div class="day-row">
         <span class="day-label">${name}</span>
         <button class="day-close-btn" onclick="event.stopPropagation();setDayOff('${block.id}',${i})" title="Make it a rest day">${ICONS.close}</button>
@@ -1431,6 +1454,32 @@ function getTreadmillLogs(routineIds){
   state.workoutLog.forEach(e=>{ if(!routineIds.includes(e.routineId)) return; e.exercises.forEach(ex=>{ if(ex.type==='treadmill' && ex.treadmill){ logs.push({date:e.date, ...ex.treadmill}); } }); });
   return logs;
 }
+let tmChartMetric = 'duration'; // 'duration' | 'speed' | 'incline'
+function computeTreadmillWeekly(routineIds, metric, weeks){
+  weeks = weeks||8;
+  const map = {};
+  state.workoutLog.forEach(e=>{
+    if(!routineIds.includes(e.routineId)) return;
+    e.exercises.forEach(ex=>{
+      if(ex.type!=='treadmill' || !ex.treadmill) return;
+      const wk = isoWeekKey(e.date);
+      const val = parseFloat(ex.treadmill[metric]) || 0;
+      if(!map[wk]) map[wk] = {sum:0, count:0};
+      map[wk].sum += val; map[wk].count++;
+    });
+  });
+  const keys = Object.keys(map).sort().slice(-weeks);
+  const values = keys.map(k=>{
+    const m = map[k];
+    if(metric==='duration') return Math.round(m.sum);
+    return m.count ? Math.round((m.sum/m.count)*10)/10 : 0;
+  });
+  return { labels: keys, values };
+}
+function setTmChartMetric(metric){
+  tmChartMetric = metric;
+  renderStats();
+}
 function computeWeeklyVolume(routineIds, weeks){
   weeks = weeks||8; const map={};
   state.workoutLog.forEach(e=>{ if(!routineIds.includes(e.routineId)) return; const wk=isoWeekKey(e.date); const vol=e.exercises.reduce((a,ex)=>a+ex.sets.reduce((b,s)=>b+(parseFloat(s.kg)||0)*(parseFloat(s.reps)||0),0),0); map[wk]=(map[wk]||0)+vol; });
@@ -1472,7 +1521,8 @@ function renderStats(){
   const tmTotalMin = tmLogs.reduce((a,t)=>a+(parseFloat(t.duration)||0),0);
   const tmAvgSpeed = tmLogs.length ? (tmLogs.reduce((a,t)=>a+(parseFloat(t.speed)||0),0)/tmLogs.length).toFixed(1) : '-';
   const tmAvgIncline = tmLogs.length ? (tmLogs.reduce((a,t)=>a+(parseFloat(t.incline)||0),0)/tmLogs.length).toFixed(1) : '-';
-  const tmSpeedTrend = tmLogs.slice(-10).map(t=>parseFloat(t.speed)||0);
+  const tmWeekly = computeTreadmillWeekly(routineIds, tmChartMetric);
+  const tmMetricLabel = tmChartMetric==='duration' ? 'Duration (min), weekly total' : tmChartMetric==='speed' ? 'Avg Speed (km/h), weekly' : 'Avg Incline (%), weekly';
 
   document.getElementById('view-stats').innerHTML = `
     <div class="stat-section">
@@ -1499,12 +1549,13 @@ function renderStats(){
     <div class="stat-section">
       <div class="stat-section-head"><h3>Treadmill</h3></div>
       <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
-        <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${Math.round(tmTotalMin)}</div><div class="stat-card-label">Total Min</div></div>
-        <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${tmAvgSpeed}</div><div class="stat-card-label">Avg km/h</div></div>
-        <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${tmAvgIncline}%</div><div class="stat-card-label">Avg Incline</div></div>
+        <div class="stat-card tm-metric-card ${tmChartMetric==='duration'?'active':''}" style="padding:10px;cursor:pointer" onclick="setTmChartMetric('duration')"><div class="stat-card-val" style="font-size:17px">${Math.round(tmTotalMin)}</div><div class="stat-card-label">Total Min</div></div>
+        <div class="stat-card tm-metric-card ${tmChartMetric==='speed'?'active':''}" style="padding:10px;cursor:pointer" onclick="setTmChartMetric('speed')"><div class="stat-card-val" style="font-size:17px">${tmAvgSpeed}</div><div class="stat-card-label">Avg km/h</div></div>
+        <div class="stat-card tm-metric-card ${tmChartMetric==='incline'?'active':''}" style="padding:10px;cursor:pointer" onclick="setTmChartMetric('incline')"><div class="stat-card-val" style="font-size:17px">${tmAvgIncline}%</div><div class="stat-card-label">Avg Incline</div></div>
       </div>
-      <div class="muted" style="font-size:11px;margin-bottom:4px">Speed trend (km/h, last 10)</div>
-      ${svgLineChart(tmSpeedTrend, '#ff6a3d')}
+      <div class="muted" style="font-size:11px;margin-bottom:4px">${tmMetricLabel}</div>
+      ${svgBarChart(tmWeekly.values, '#ff6a3d')}
+      <div class="chart-labels"><span>${tmWeekly.labels[0]||''}</span><span>${tmWeekly.labels[tmWeekly.labels.length-1]||''}</span></div>
     </div>
     <div class="stat-grid">
       <div class="stat-card"><div class="stat-card-val">${filteredLog.length}</div><div class="stat-card-label">Total Workouts</div></div>
@@ -1579,7 +1630,7 @@ function showDay(dateStr){
       ${e.exercises.map((ex,exi)=>`
         <div class="log-ex">
           <div class="log-ex-name">${ex.name}<button class="del-set" onclick="deleteLoggedExercise('${dateStr}','${e.routineId}',${exi})" title="Delete">×</button></div>
-          ${ex.notes ? `<div class="log-ex-note">📝 ${esc(ex.notes)}</div>` : ''}
+          ${ex.notes ? `<div class="log-ex-note">${ICONS.note}${esc(ex.notes)}</div>` : ''}
           <div class="log-ex-sets">${ex.type==='treadmill'
             ? `${(ex.treadmill&&ex.treadmill.speed)||'-'} km/h · ${(ex.treadmill&&ex.treadmill.incline)||0}% incline · ${(ex.treadmill&&ex.treadmill.duration)||'-'} min`
             : ex.sets.map((s,i)=>`<div>Set ${i+1} — ${s.kg}kg, ${s.reps} reps</div>`).join('')}</div>
