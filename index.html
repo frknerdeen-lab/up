@@ -294,16 +294,6 @@ button{font-family:inherit;cursor:pointer}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-<script type="module">
-  // Compat SDK has no direct "download as blob" method (only getDownloadURL, which
-  // creates a permanent shareable link). getBlob() exists only in the modular SDK,
-  // so we load it separately just for private, rules-respecting video playback.
-  import { getStorage, ref as modRef, getBlob } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-  window.__getVideoBlob = async function(path){
-    const storage = getStorage(firebase.app());
-    return await getBlob(modRef(storage, path));
-  };
-</script>
 
 <div id="passGate" style="position:fixed;inset:0;z-index:9999;background:#05060b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center">
   <div style="font-size:40px">🔒</div>
@@ -1137,8 +1127,6 @@ async function toggleVideo(exId){
   const isOpen = frame.style.display === 'block';
   if(isOpen){
     frame.style.display = 'none';
-    const v = frame.querySelector('video');
-    if(v && v.src) URL.revokeObjectURL(v.src);
     frame.innerHTML = '';
     btn.textContent = ICONS.play+' Watch Video';
     openVideoIds.delete(exId);
@@ -1153,9 +1141,8 @@ async function toggleVideo(exId){
   }
   btn.textContent = 'Loading…';
   try{
-    const blob = await window.__getVideoBlob(ex.videoPath);
-    const objUrl = URL.createObjectURL(blob);
-    frame.innerHTML = `<video src="${objUrl}" controls autoplay playsinline></video>`;
+    const url = await videoStorageRef(ex.videoPath).getDownloadURL();
+    frame.innerHTML = `<video src="${url}" controls autoplay playsinline></video>`;
     frame.style.display = 'block';
     btn.textContent = '▲ Close';
     openVideoIds.add(exId);
