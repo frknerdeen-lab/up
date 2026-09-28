@@ -287,6 +287,16 @@ button{font-family:inherit;cursor:pointer}
 .habit-note-preview{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
 .habit-row.done .habit-name{color:var(--muted);text-decoration:line-through}
 .habit-streak{font-size:12px;color:var(--muted);white-space:nowrap}
+.streak-hero-wrap{padding:22px 0 14px;text-align:center;overflow:hidden}
+.streak-hero{position:relative;overflow:hidden;touch-action:pan-y}
+.streak-hero-track{display:flex;transition:transform .25s ease}
+.streak-hero-page{flex:0 0 100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.streak-hero-number{font-size:96px;font-weight:900;line-height:.85;letter-spacing:-2px;background:linear-gradient(180deg,var(--text) 40%,var(--muted));-webkit-background-clip:text;background-clip:text;color:transparent}
+.streak-hero-unit{font-size:18px;font-weight:800;letter-spacing:2px;color:var(--text);margin-top:4px}
+.streak-hero-fixed{font-size:26px;font-weight:900;letter-spacing:2px;color:var(--text);margin-top:2px}
+.streak-hero-dots{display:flex;justify-content:center;gap:6px;margin-top:12px}
+.streak-hero-dot{width:6px;height:6px;border-radius:50%;background:var(--border);cursor:pointer}
+.streak-hero-dot.active{background:var(--accent)}
 </style>
 </head>
 <body>
@@ -1785,6 +1795,24 @@ function computeConsistency(routineIds, weeksBack){
   const total = keys.reduce((a,k)=>a+map[k].size,0);
   return (total/keys.length).toFixed(1);
 }
+function computePersonalRecords(){
+  const map = {}; // exercise name -> best weighted set and best rep count ever logged
+  state.workoutLog.forEach(e=>(e.exercises||[]).forEach(ex=>{
+    if(ex.type==='treadmill') return;
+    (ex.sets||[]).forEach(s=>{
+      const kg = parseFloat(s.kg)||0, reps = parseFloat(s.reps)||0;
+      if(!reps) return;
+      if(!map[ex.name]) map[ex.name] = { bestKg:0, bestKgReps:0, bestReps:0, anyWeighted:false };
+      const rec = map[ex.name];
+      if(kg>0) rec.anyWeighted = true;
+      if(kg > rec.bestKg || (kg===rec.bestKg && reps>rec.bestKgReps)){ rec.bestKg = kg; rec.bestKgReps = reps; }
+      if(reps > rec.bestReps) rec.bestReps = reps;
+    });
+  }));
+  return Object.entries(map)
+    .map(([name,r])=>({ name, display: r.anyWeighted ? `${r.bestKg}kg × ${r.bestKgReps}` : `${r.bestReps} reps` }))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+}
 function computeWorkoutStreak(){
   // Counts backward day by day from today. A scheduled-but-completed day extends
   // the streak; a rest/off day is skipped (doesn't help or hurt); the first
@@ -1809,6 +1837,88 @@ function computeWorkoutStreak(){
   }
   return streak;
 }
+
+let streakHeroIndex = 0;
+let streakHeroPagesCount = 1;
+let streakHeroTouchStartX = null;
+let streakHeroTouchDeltaX = 0;
+
+function computeStreakPages(streak){
+  // Breaks the streak down into a cascade of the largest applicable units —
+  // years, months (30-day), weeks, days — swipeable one unit at a time,
+  // e.g. a 480-day streak becomes [1 YEAR, 3 MONTHS, 3 WEEKS, 6 DAYS].
+  if(streak<=0) return [{num:0, unit:'DAYS'}];
+  let remaining = streak;
+  const years = Math.floor(remaining/365); remaining -= years*365;
+  const months = Math.floor(remaining/30); remaining -= months*30;
+  const weeks = Math.floor(remaining/7); remaining -= weeks*7;
+  const days = remaining;
+  const pages = [];
+  if(years>0) pages.push({num:years, unit: years===1?'YEAR':'YEARS'});
+  if(months>0) pages.push({num:months, unit: months===1?'MONTH':'MONTHS'});
+  if(weeks>0) pages.push({num:weeks, unit: weeks===1?'WEEK':'WEEKS'});
+  if(days>0 || pages.length===0) pages.push({num:days, unit: days===1?'DAY':'DAYS'});
+  return pages;
+}
+
+function renderStreakHero(streak){
+  if(streak<=0){
+    return `<div class="stat-section" style="display:flex;align-items:center;gap:12px">
+         <div style="font-size:28px;opacity:.5">🔥</div>
+         <div>
+           <div style="font-size:15px;font-weight:700;color:var(--muted)">No active streak</div>
+           <div style="font-size:12px;color:var(--muted)">Complete today's scheduled workout to start one</div>
+         </div>
+       </div>`;
+  }
+  const pages = computeStreakPages(streak);
+  streakHeroPagesCount = pages.length;
+  if(streakHeroIndex >= pages.length) streakHeroIndex = pages.length - 1;
+  const dots = pages.length > 1
+    ? `<div class="streak-hero-dots">${pages.map((_,i)=>`<div class="streak-hero-dot ${i===streakHeroIndex?'active':''}" onclick="goToStreakPage(${i})"></div>`).join('')}</div>`
+    : '';
+  return `<div class="stat-section streak-hero-wrap">
+    <div class="streak-hero" id="streakHeroEl" ontouchstart="streakHeroTouchStart(event)" ontouchmove="streakHeroTouchMove(event)" ontouchend="streakHeroTouchEnd(event)">
+      <div class="streak-hero-track" id="streakHeroTrack" style="transform:translateX(${-streakHeroIndex*100}%)">
+        ${pages.map(p=>`<div class="streak-hero-page">
+          <div class="streak-hero-number">${p.num}</div>
+          <div class="streak-hero-unit">${p.unit}</div>
+        </div>`).join('')}
+      </div>
+      <div class="streak-hero-fixed">🔥 STREAK</div>
+    </div>
+    ${dots}
+  </div>`;
+}
+
+function streakHeroTouchStart(e){
+  streakHeroTouchStartX = e.touches[0].clientX;
+  streakHeroTouchDeltaX = 0;
+  const track = document.getElementById('streakHeroTrack');
+  if(track) track.style.transition = 'none';
+}
+function streakHeroTouchMove(e){
+  if(streakHeroTouchStartX===null) return;
+  streakHeroTouchDeltaX = e.touches[0].clientX - streakHeroTouchStartX;
+  const track = document.getElementById('streakHeroTrack');
+  if(track) track.style.transform = `translateX(calc(${-streakHeroIndex*100}% + ${streakHeroTouchDeltaX}px))`;
+}
+function streakHeroTouchEnd(){
+  if(streakHeroTouchStartX===null) return;
+  const track = document.getElementById('streakHeroTrack');
+  if(track) track.style.transition = '';
+  const threshold = 40;
+  if(streakHeroTouchDeltaX < -threshold && streakHeroIndex < streakHeroPagesCount-1) streakHeroIndex++;
+  else if(streakHeroTouchDeltaX > threshold && streakHeroIndex > 0) streakHeroIndex--;
+  streakHeroTouchStartX = null;
+  streakHeroTouchDeltaX = 0;
+  renderStats();
+}
+function goToStreakPage(i){
+  streakHeroIndex = i;
+  renderStats();
+}
+
 function onStatsBlockChange(){
   statsBlockId = document.getElementById('statsBlockSelect').value;
   renderStats();
@@ -1840,21 +1950,7 @@ function renderStats(){
   const tmMetricLabel = tmChartMetric==='duration' ? 'Duration (min), weekly total' : tmChartMetric==='speed' ? 'Avg Speed (km/h), weekly' : 'Avg Incline (%), weekly';
 
   const streak = computeWorkoutStreak();
-  const streakHtml = streak > 0
-    ? `<div class="stat-section" style="display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,var(--card2),var(--card))">
-         <div style="font-size:28px">🔥</div>
-         <div>
-           <div style="font-size:20px;font-weight:800;color:var(--text)">${streak} day${streak===1?'':'s'} streak</div>
-           <div style="font-size:12px;color:var(--muted)">Keep it going — don't break the chain</div>
-         </div>
-       </div>`
-    : `<div class="stat-section" style="display:flex;align-items:center;gap:12px">
-         <div style="font-size:28px;opacity:.5">🔥</div>
-         <div>
-           <div style="font-size:15px;font-weight:700;color:var(--muted)">No active streak</div>
-           <div style="font-size:12px;color:var(--muted)">Complete today's scheduled workout to start one</div>
-         </div>
-       </div>`;
+  const streakHtml = renderStreakHero(streak);
   document.getElementById('view-stats').innerHTML = `
     ${streakHtml}
     <div class="stat-section">
@@ -1895,6 +1991,16 @@ function renderStats(){
       <div class="stat-card"><div class="stat-card-val">${avgDur?avgDur+'m':'-'}</div><div class="stat-card-label">Avg Duration</div></div>
       <div class="stat-card"><div class="stat-card-val">${consistency}</div><div class="stat-card-label">Avg Days/Week</div></div>
     </div>
+    ${(() => {
+      const prs = computePersonalRecords();
+      if(!prs.length) return '';
+      return `<div class="stat-section">
+        <div class="stat-section-head"><h3>🏆 Personal Records</h3></div>
+        ${prs.map(p=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+          <span>${esc(p.name)}</span><span style="font-weight:700;color:var(--accent)">${esc(p.display)}</span>
+        </div>`).join('')}
+      </div>`;
+    })()}
     <div class="stat-section">
       <h3>Weekly Volume</h3>
       ${svgBarChart(wk.values)}
