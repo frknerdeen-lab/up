@@ -293,6 +293,17 @@ button{font-family:inherit;cursor:pointer}
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script type="module">
+  // Compat SDK has no direct "download as blob" method (only getDownloadURL, which
+  // creates a permanent shareable link). getBlob() exists only in the modular SDK,
+  // so we load it separately just for private, rules-respecting video playback.
+  import { getStorage, ref as modRef, getBlob } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+  window.__getVideoBlob = async function(path){
+    const storage = getStorage(firebase.app());
+    return await getBlob(modRef(storage, path));
+  };
+</script>
 
 <div id="passGate" style="position:fixed;inset:0;z-index:9999;background:#05060b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center">
   <div style="font-size:40px">🔒</div>
@@ -1087,12 +1098,8 @@ function openVideoModal(id){
   document.getElementById('vidRemoveBtn').style.display = ex.videoPath ? '' : 'none';
   document.getElementById('vidModal').classList.add('show');
 }
-const STORAGE_BUCKET = 'upapp-d7286.firebasestorage.app';
 function exerciseVideoPath(exId){ return `users/${currentUser.uid}/videos/${exId}`; }
-async function storageAuthHeaders(extra){
-  const token = await currentUser.getIdToken();
-  return Object.assign({'Authorization': 'Bearer '+token}, extra||{});
-}
+function videoStorageRef(path){ return firebase.storage().ref(path); }
 async function uploadExerciseVideo(){
   const exId = activeExerciseId;
   const fileInput = document.getElementById('videoFileInput');
@@ -1102,10 +1109,7 @@ async function uploadExerciseVideo(){
   statusEl.textContent = 'Uploading…';
   try{
     const path = exerciseVideoPath(exId);
-    const headers = await storageAuthHeaders({'Content-Type': file.type || 'video/mp4'});
-    const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o?name=${encodeURIComponent(path)}`;
-    const res = await fetch(uploadUrl, { method:'POST', headers, body: file });
-    if(!res.ok) throw new Error('HTTP '+res.status);
+    await videoStorageRef(path).put(file, { contentType: file.type || 'video/mp4' });
     const ex = activeRoutine().exercises.find(x=>x.id===exId);
     ex.videoPath = path;
     ex.youtube = ''; // legacy link field no longer used going forward
@@ -1121,9 +1125,7 @@ async function removeExerciseVideo(){
   const ex = activeRoutine().exercises.find(x=>x.id===exId);
   if(!ex.videoPath){ closeModal('vidModal'); return; }
   try{
-    const headers = await storageAuthHeaders();
-    const delUrl = `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(ex.videoPath)}`;
-    await fetch(delUrl, { method:'DELETE', headers });
+    await videoStorageRef(ex.videoPath).delete();
   }catch(e){ console.error('video delete failed', e); }
   ex.videoPath = '';
   save(); closeModal('vidModal'); render();
@@ -1151,11 +1153,7 @@ async function toggleVideo(exId){
   }
   btn.textContent = 'Loading…';
   try{
-    const headers = await storageAuthHeaders();
-    const mediaUrl = `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(ex.videoPath)}?alt=media`;
-    const res = await fetch(mediaUrl, { headers });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const blob = await res.blob();
+    const blob = await window.__getVideoBlob(ex.videoPath);
     const objUrl = URL.createObjectURL(blob);
     frame.innerHTML = `<video src="${objUrl}" controls autoplay playsinline></video>`;
     frame.style.display = 'block';
