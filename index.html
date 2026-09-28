@@ -131,7 +131,7 @@ button{font-family:inherit;cursor:pointer}
 .day-choice-btn.off:hover{background:var(--card2);border-color:var(--muted);color:var(--text)}
 
 /* ============ ANTRENMAN OTURUMU İSTATİSTİK ÇUBUĞU ============ */
-.stats{display:flex;justify-content:space-around;padding:16px;border-bottom:1px solid var(--border)}
+.stats{display:flex;justify-content:space-around;padding:16px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:6;background:rgba(5,6,11,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .stat{text-align:center}
 .stat .label{color:var(--muted);font-size:13px;margin-bottom:4px}
 .stat .value{font-size:20px;font-weight:700}
@@ -168,6 +168,7 @@ button{font-family:inherit;cursor:pointer}
 .trow input[type=number]{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 4px;text-align:center;font-size:14px;font-family:inherit}
 .trow input[type=number]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(239,43,63,.18)}
 .check{width:36px;height:36px;border-radius:8px;background:var(--card2);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:16px}
+.check.disabled{opacity:.3;pointer-events:none}
 .trow.done .setnum{background:var(--done);border:1px solid var(--done-border)}
 .trow.done input[type=number]{background:var(--done);border-color:var(--done-border)}
 .trow.done .check{background:var(--done);border-color:var(--done-border);color:var(--green)}
@@ -524,6 +525,7 @@ let currentTab = (savedTab==='workout'||savedTab==='stats'||savedTab==='daily') 
 let workoutSubView = 'home';      // 'home' | 'detail'
 let activeRoutineIdRuntime = null;
 let activeExerciseId = null, routineModalTargetId = null;
+let openVideoIds = new Set();
 let sessionActive = false, sessionInterval = null, sessionStart = null, sessionElapsedMs = 0;
 let timerSeconds = 0, timerRunning = false, timerInterval = null;
 let calViewDate = new Date();
@@ -1016,6 +1018,7 @@ function toggleVideo(exId){
     frame.style.display = 'none';
     frame.innerHTML = '';
     btn.textContent = ICONS.play+' Watch Video';
+    openVideoIds.delete(exId);
   } else {
     const src = videoEmbedUrl(ex.youtube);
     frame.innerHTML = src
@@ -1023,12 +1026,27 @@ function toggleVideo(exId){
       : '<div style="padding:14px;color:var(--muted);font-size:13px">No video ID found in this link. Check the link.</div>';
     frame.style.display = 'block';
     btn.textContent = '▲ Close';
+    openVideoIds.add(exId);
   }
 }
-function addSet(exId){ activeRoutine().exercises.find(x=>x.id===exId).sets.push({kg:'',reps:'',done:false}); save(); render(); }
+function addSet(exId){
+  const ex = activeRoutine().exercises.find(x=>x.id===exId);
+  const last = ex.sets[ex.sets.length-1];
+  ex.sets.push({kg: last ? last.kg : '', reps: last ? last.reps : '', done:false});
+  save(); render();
+}
 function removeSet(exId, idx){ activeRoutine().exercises.find(x=>x.id===exId).sets.splice(idx,1); save(); render(); }
 function updateSet(exId, idx, field, val){ activeRoutine().exercises.find(x=>x.id===exId).sets[idx][field] = val; save(); updateStats(); }
-function toggleDone(exId, idx){ const s = activeRoutine().exercises.find(x=>x.id===exId).sets[idx]; s.done = !s.done; save(); render(); }
+function toggleDone(exId, idx){
+  const ex = activeRoutine().exercises.find(x=>x.id===exId);
+  const s = ex.sets[idx];
+  if(!s.done){
+    const repsOk = parseFloat(s.reps) > 0;
+    const kgOk = ex.bodyweight || parseFloat(s.kg) > 0;
+    if(!repsOk || !kgOk) return;
+  }
+  s.done = !s.done; save(); render();
+}
 
 function updateStats(){
   const r = activeRoutine();
@@ -1084,12 +1102,14 @@ function exerciseInner(ex, moveHtml){
         <button class="check ${t.done?'done':''}" style="height:38px" onclick="toggleTreadmillDone('${ex.id}')">✓</button>
       </div>`;
   }
-  const videoBlock = videoEmbedUrl(ex.youtube)
+  const vidSrc = videoEmbedUrl(ex.youtube);
+  const vidIsOpen = vidSrc && openVideoIds.has(ex.id);
+  const videoBlock = vidSrc
     ? `<div style="display:flex;align-items:center;gap:6px">
-         <button class="video-thumb" id="vidbtn-${ex.id}" onclick="toggleVideo('${ex.id}')" style="flex:1">${ICONS.play} Watch Video</button>
+         <button class="video-thumb" id="vidbtn-${ex.id}" onclick="toggleVideo('${ex.id}')" style="flex:1">${vidIsOpen ? '▲ Close' : ICONS.play+' Watch Video'}</button>
          <button class="icon-btn" style="font-size:12px;padding:5px 8px" title="Change Video" onclick="openVideoModal('${ex.id}')">${ICONS.edit}</button>
        </div>
-       <div class="video-frame" id="frame-${ex.id}" style="display:none"></div>`
+       <div class="video-frame" id="frame-${ex.id}" style="display:${vidIsOpen?'block':'none'}">${vidIsOpen ? `<iframe src="${vidSrc}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe>` : ''}</div>`
     : `<button class="video-thumb" onclick="openVideoModal('${ex.id}')">${ICONS.add} Add Video</button>`;
   const prevNote = getPrevNote(ex.name);
   const prevNoteBtn = prevNote ? `<button class="icon-btn" style="font-size:15px;flex-shrink:0" title="Last time: ${esc(prevNote)}" onclick="insertPrevNote('${ex.id}')">📋</button>` : '';
@@ -1111,11 +1131,12 @@ function exerciseInner(ex, moveHtml){
   const rows = ex.sets.map((s,i) => {
     const prev = prevArr[i] ? (bw ? `x ${prevArr[i].reps}` : `${prevArr[i].kg}kg x ${prevArr[i].reps}`) : '-';
     const kgInput = bw ? '' : `<input type="number" placeholder="0" value="${s.kg}" onchange="updateSet('${ex.id}',${i},'kg',this.value)">`;
+    const canCheck = parseFloat(s.reps) > 0 && (bw || parseFloat(s.kg) > 0);
     return `<div class="trow ${bw?'bw-row':''} ${s.done?'done':''}">
       <div class="setnum">${i+1}</div><div class="prev">${prev}</div>
       ${kgInput}
       <input type="number" placeholder="0" value="${s.reps}" onchange="updateSet('${ex.id}',${i},'reps',this.value)">
-      <button class="check" onclick="toggleDone('${ex.id}',${i})">✓</button>
+      <button class="check ${(!canCheck && !s.done)?'disabled':''}" onclick="toggleDone('${ex.id}',${i})">✓</button>
       <button class="del-set" onclick="removeSet('${ex.id}',${i})" title="Delete set">×</button>
     </div>`;
   }).join('');
@@ -1176,6 +1197,8 @@ function moveExerciseGroup(anchorId, dir){
   save(); render();
 }
 function render(){
+  const scroller = document.getElementById('appScroll');
+  const savedScroll = scroller ? scroller.scrollTop : 0;
   const r = activeRoutine();
   const list = document.getElementById('exerciseList');
   const addBtn = document.getElementById('addExerciseBtn');
@@ -1188,7 +1211,7 @@ function render(){
       addBtn.innerHTML = '<span class="ic-plus"></span>';
     }
   }
-  if(!r || r.exercises.length===0){ list.innerHTML = '<div class="empty">No exercises in this program yet.<br>Add one with the button below.</div>'; updateStats(); return; }
+  if(!r || r.exercises.length===0){ list.innerHTML = '<div class="empty">No exercises in this program yet.<br>Add one with the button below.</div>'; updateStats(); if(scroller) scroller.scrollTop = savedScroll; return; }
   const groups = getExerciseGroups(r.exercises);
   list.innerHTML = groups.map((items, gi)=>{
     const anchorId = items[0].id;
@@ -1202,6 +1225,7 @@ function render(){
     </div>`;
   }).join('');
   updateStats();
+  if(scroller) scroller.scrollTop = savedScroll;
 }
 
 /* =========================================================================
