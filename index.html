@@ -636,8 +636,11 @@ async function registerFcmToken(){
     const messaging = firebase.messaging();
     const token = await messaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: reg });
     if(token){
-      const url = await authedUrl(`users/${currentUser.uid}/fcmTokens`);
-      await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token, updatedAt: Date.now(), ua: navigator.userAgent.slice(0,120) }) });
+      // Use the token itself (sanitized) as the RTDB key so re-registering the
+      // same device overwrites its existing entry instead of piling up duplicates.
+      const safeKey = token.replace(/[.#$/\[\]]/g, '_');
+      const url = await authedUrl(`users/${currentUser.uid}/fcmTokens/${safeKey}`);
+      await fetch(url, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token, updatedAt: Date.now(), ua: navigator.userAgent.slice(0,120) }) });
     }
     return token;
   }catch(e){ console.error('fcm token registration failed', e); return null; }
