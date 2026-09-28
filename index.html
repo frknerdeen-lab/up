@@ -1333,6 +1333,28 @@ function addSet(exId){
 }
 function removeSet(exId, idx){ activeRoutine().exercises.find(x=>x.id===exId).sets.splice(idx,1); save(); render(); }
 function updateSet(exId, idx, field, val){ activeRoutine().exercises.find(x=>x.id===exId).sets[idx][field] = val; save(); updateStats(); }
+function isNewPR(exName, kg, reps, bodyweight){
+  const sets = [];
+  state.workoutLog.forEach(e=>(e.exercises||[]).forEach(ex=>{ if(ex.name===exName) sets.push(...(ex.sets||[])); }));
+  if(!sets.length) return false; // nothing to compare against yet
+  if(bodyweight){
+    const maxReps = Math.max(...sets.map(s=>parseFloat(s.reps)||0));
+    return (parseFloat(reps)||0) > maxReps;
+  }
+  const maxKg = Math.max(...sets.map(s=>parseFloat(s.kg)||0));
+  return (parseFloat(kg)||0) > maxKg;
+}
+function showPrToast(msg){
+  const el = document.createElement('div');
+  el.textContent = '🏆 ' + msg;
+  el.style.cssText = 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:linear-gradient(135deg,#ff6a3d,#ff2b3f);color:#fff;font-weight:700;font-size:14px;padding:12px 20px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:10000;opacity:0;transition:opacity .25s ease,transform .25s ease;max-width:85vw;text-align:center';
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>{ el.style.opacity='1'; });
+  setTimeout(()=>{
+    el.style.opacity='0';
+    setTimeout(()=>el.remove(), 300);
+  }, 2500);
+}
 function toggleDone(exId, idx){
   const ex = activeRoutine().exercises.find(x=>x.id===exId);
   const s = ex.sets[idx];
@@ -1341,7 +1363,12 @@ function toggleDone(exId, idx){
     const kgOk = ex.bodyweight || parseFloat(s.kg) > 0;
     if(!repsOk || !kgOk) return;
   }
+  const turningOn = !s.done;
+  const wasPR = turningOn && isNewPR(ex.name, s.kg, s.reps, ex.bodyweight);
   s.done = !s.done; save(); render();
+  if(wasPR){
+    showPrToast(`New PR! ${ex.name} — ${ex.bodyweight ? s.reps+' reps' : s.kg+'kg × '+s.reps}`);
+  }
 }
 
 function updateStats(){
@@ -1758,6 +1785,30 @@ function computeConsistency(routineIds, weeksBack){
   const total = keys.reduce((a,k)=>a+map[k].size,0);
   return (total/keys.length).toFixed(1);
 }
+function computeWorkoutStreak(){
+  // Counts backward day by day from today. A scheduled-but-completed day extends
+  // the streak; a rest/off day is skipped (doesn't help or hurt); the first
+  // scheduled-but-missed day ends it. Today is special-cased: if it's scheduled
+  // and not done yet, that doesn't break the streak since the day isn't over.
+  let streak = 0;
+  const d = new Date();
+  for(let i=0; i<3650; i++){
+    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+    const dateStr = `${y}-${m}-${day}`;
+    const weekdayIdx = (d.getDay()+6)%7; // Monday=0 ... Sunday=6
+    const scheduledIds = (state.weekBlocks||[]).map(b=>b.plan && b.plan[weekdayIdx]).filter(v=>v && v!=='OFF');
+    const isScheduled = scheduledIds.length > 0;
+    const isDone = isScheduled && state.workoutLog.some(e=>scheduledIds.includes(e.routineId) && e.date===dateStr);
+    if(isScheduled && isDone){
+      streak++;
+    } else if(isScheduled && !isDone){
+      if(i===0){ /* today not finished yet — keep checking backward, don't break */ }
+      else break;
+    }
+    d.setDate(d.getDate()-1);
+  }
+  return streak;
+}
 function onStatsBlockChange(){
   statsBlockId = document.getElementById('statsBlockSelect').value;
   renderStats();
@@ -1788,7 +1839,24 @@ function renderStats(){
   const tmWeekly = computeTreadmillWeekly(routineIds, tmChartMetric);
   const tmMetricLabel = tmChartMetric==='duration' ? 'Duration (min), weekly total' : tmChartMetric==='speed' ? 'Avg Speed (km/h), weekly' : 'Avg Incline (%), weekly';
 
+  const streak = computeWorkoutStreak();
+  const streakHtml = streak > 0
+    ? `<div class="stat-section" style="display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,var(--card2),var(--card))">
+         <div style="font-size:28px">🔥</div>
+         <div>
+           <div style="font-size:20px;font-weight:800;color:var(--text)">${streak} day${streak===1?'':'s'} streak</div>
+           <div style="font-size:12px;color:var(--muted)">Keep it going — don't break the chain</div>
+         </div>
+       </div>`
+    : `<div class="stat-section" style="display:flex;align-items:center;gap:12px">
+         <div style="font-size:28px;opacity:.5">🔥</div>
+         <div>
+           <div style="font-size:15px;font-weight:700;color:var(--muted)">No active streak</div>
+           <div style="font-size:12px;color:var(--muted)">Complete today's scheduled workout to start one</div>
+         </div>
+       </div>`;
   document.getElementById('view-stats').innerHTML = `
+    ${streakHtml}
     <div class="stat-section">
       <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px">Workout Plan</div>
       <select id="statsBlockSelect" class="theme-select" onchange="onStatsBlockChange()">
