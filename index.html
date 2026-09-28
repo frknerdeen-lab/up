@@ -57,7 +57,7 @@ button{font-family:inherit;cursor:pointer}
 .topbar-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .icon-btn{background:none;border:none;color:var(--text);font-size:20px;padding:6px;border-radius:8px}
-.note-btn{display:flex;align-items:center;justify-content:center;padding:4px 8px;flex-shrink:0}
+.note-btn{display:flex;align-items:center;justify-content:flex-end;padding:4px 8px;flex-shrink:0}
 .icon-btn:hover{background:var(--card2);box-shadow:var(--glow)}
 .finish-btn{background:var(--grad);color:#fff;border:none;padding:9px 18px;border-radius:10px;font-weight:800;font-size:14px;box-shadow:0 4px 16px rgba(239,43,63,.35)}
 .finish-btn:hover{filter:brightness(1.08)}
@@ -148,7 +148,7 @@ button{font-family:inherit;cursor:pointer}
 .superset-divider{height:1px;background:var(--border);margin:16px 0}
 .ex-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ex-name{color:var(--accent);font-size:16px;font-weight:700;background:none;border:none;font-family:inherit;padding:0;width:100%}
-.ex-menu-btn{background:none;border:none;color:var(--muted);font-size:18px;padding:4px 8px;display:flex;align-items:center;justify-content:center}
+.ex-menu-btn{background:none;border:none;color:var(--muted);font-size:18px;padding:4px 8px;display:flex;align-items:center;justify-content:flex-end}
 .move-btns{display:flex;flex-direction:column;gap:1px;flex-shrink:0}
 .move-btn{background:none;border:none;color:var(--muted);font-size:10px;line-height:1;padding:2px 4px;border-radius:4px}
 .move-btn:hover{background:var(--card2);color:var(--accent)}
@@ -291,28 +291,64 @@ button{font-family:inherit;cursor:pointer}
 </head>
 <body>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
 <div id="passGate" style="position:fixed;inset:0;z-index:9999;background:#05060b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center">
   <div style="font-size:40px">🔒</div>
   <div style="color:#f3f5fb;font-size:17px;font-weight:700">UP</div>
-  <input id="passInput" type="password" inputmode="numeric" placeholder="Password" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#f3f5fb;border-radius:10px;padding:12px 16px;font-size:16px;text-align:center;width:200px" onkeydown="if(event.key==='Enter') checkAppPassword()">
-  <button onclick="checkAppPassword()" style="background:linear-gradient(135deg,#ff3b3b,#7f1d1d);color:#fff;border:none;padding:11px 28px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer">Enter</button>
-  <div id="passError" style="display:none;color:#ef4444;font-size:13px">Wrong password</div>
+  <div id="passLoading" style="color:#9aa2b6;font-size:13px">Yükleniyor...</div>
+  <button id="googleSignInBtn" onclick="signInWithGoogle()" style="display:none;align-items:center;gap:10px;background:#fff;color:#1f1f1f;border:none;padding:11px 22px;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer">
+    <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.84 2.09-1.8 2.73v2.27h2.91c1.7-1.57 2.69-3.88 2.69-6.64z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.27c-.81.54-1.84.86-3.05.86-2.34 0-4.33-1.58-5.04-3.71H.96v2.34C2.44 15.98 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.96 10.7c-.18-.54-.28-1.11-.28-1.7s.1-1.16.28-1.7V4.96H.96C.35 6.17 0 7.55 0 9s.35 2.83.96 4.04l3-2.34z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.96l3 2.34C4.67 5.16 6.66 3.58 9 3.58z"/></svg>
+    Google ile giriş yap
+  </button>
+  <div id="passError" style="display:none;color:#ef4444;font-size:13px"></div>
 </div>
 <script>
-  (function(){
-    if(localStorage.getItem('appUnlocked')==='1'){
-      document.getElementById('passGate').style.display='none';
-    }
-  })();
-  function checkAppPassword(){
-    const val = document.getElementById('passInput').value;
-    if(val === '31'){
-      localStorage.setItem('appUnlocked','1');
-      document.getElementById('passGate').style.display='none';
-    } else {
-      document.getElementById('passError').style.display='block';
-    }
+  const firebaseConfig = {
+    apiKey: "AIzaSyA6_yrK5hvQ4feXtlMY_8T9UyNatLDDyYY",
+    authDomain: "upapp-d7286.firebaseapp.com",
+    databaseURL: "https://upapp-d7286-default-rtdb.firebaseio.com",
+    projectId: "upapp-d7286",
+    storageBucket: "upapp-d7286.firebasestorage.app",
+    messagingSenderId: "723719819100",
+    appId: "1:723719819100:web:6e2d08cca61b45d669fb99"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const ALLOWED_EMAILS = ['frkn.erdeen@gmail.com'];
+  let currentUser = null;
+  function showPassError(msg){
+    const el = document.getElementById('passError');
+    el.textContent = msg; el.style.display = 'block';
   }
+  function signInWithGoogle(){
+    document.getElementById('passError').style.display = 'none';
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebase.auth().signInWithPopup(provider).catch(err=>{
+      showPassError('Giriş başarısız: ' + err.message);
+    });
+  }
+  firebase.auth().onAuthStateChanged(async function(user){
+    if(user){
+      if(!ALLOWED_EMAILS.includes(user.email)){
+        showPassError('Bu hesabın uygulamaya erişim izni yok.');
+        document.getElementById('passLoading').style.display = 'none';
+        document.getElementById('googleSignInBtn').style.display = 'flex';
+        await firebase.auth().signOut();
+        return;
+      }
+      currentUser = user;
+      document.getElementById('passGate').style.display = 'none';
+      try{ await ensureMigrated(); }catch(e){ console.error('migration error', e); }
+      authReady = true;
+      tryStartApp();
+    } else {
+      currentUser = null;
+      document.getElementById('passLoading').style.display = 'none';
+      document.getElementById('googleSignInBtn').style.display = 'flex';
+      document.getElementById('passGate').style.display = 'flex';
+    }
+  });
 </script>
 
 
@@ -536,10 +572,19 @@ let sessionActive = false, sessionInterval = null, sessionStart = null, sessionE
 let timerSeconds = 0, timerRunning = false, timerInterval = null;
 let calViewDate = new Date();
 
+let dbReady = false, authReady = false, appStarted = false;
+function tryStartApp(){
+  if(dbReady && authReady && !appStarted){
+    appStarted = true;
+    renderApp();
+    pullRemote();
+    setInterval(pullRemote, 15000);
+  }
+}
 const dbReq = indexedDB.open('heavyVideos', 1);
 dbReq.onupgradeneeded = e => e.target.result.createObjectStore('videos');
-dbReq.onsuccess = e => { db = e.target.result; renderApp(); pullRemote(); setInterval(pullRemote, 15000); };
-dbReq.onerror = () => { renderApp(); pullRemote(); setInterval(pullRemote, 15000); };
+dbReq.onsuccess = e => { db = e.target.result; dbReady = true; tryStartApp(); };
+dbReq.onerror = () => { dbReady = true; tryStartApp(); };
 
 function save(){ state.updatedAt = Date.now(); localStorage.setItem('heavyState', JSON.stringify(state)); scheduleSync(); }
 
@@ -557,13 +602,41 @@ function setSyncStatus(s, msg){
   el.textContent = s==='pending' ? '☁ Syncing…' : s==='ok' ? '☁ Synced' : '☁ Sync ERROR' + (msg?(': '+msg):'');
   el.style.color = s==='err' ? '#ef4444' : '';
 }
-function pushRemote(){
-  return fetch(`${FIREBASE_URL}/${SYNC_PATH}.json`, {
-    method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(state)
-  }).then(res=>{
+function userSyncPath(){ return `users/${currentUser.uid}/${SYNC_PATH}`; }
+async function authedUrl(path){
+  const token = await currentUser.getIdToken();
+  return `${FIREBASE_URL}/${path}.json?auth=${token}`;
+}
+const PRIMARY_LEGACY_OWNER_EMAIL = 'frkn.erdeen@gmail.com'; // only this account inherits the old shared data
+async function ensureMigrated(){
+  const newUrl = await authedUrl(userSyncPath());
+  const res = await fetch(newUrl);
+  const existing = res.ok ? await res.json() : null;
+  if(existing) return; // already has its own data, nothing to migrate
+  if(currentUser.email !== PRIMARY_LEGACY_OWNER_EMAIL) return; // new invited users start fresh, never inherit old shared data
+  try{
+    const legacyUrl = await authedUrl(SYNC_PATH);
+    const legacyRes = await fetch(legacyUrl);
+    if(legacyRes.ok){
+      const legacy = await legacyRes.json();
+      if(legacy && typeof legacy === 'object' && Object.keys(legacy).length){
+        await fetch(newUrl, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(legacy) });
+        state = normalizeState(legacy);
+        localStorage.setItem('heavyState', JSON.stringify(state));
+      }
+    }
+  }catch(e){ console.error('legacy migration skipped', e); }
+}
+async function pushRemote(){
+  if(!currentUser) return;
+  try{
+    const url = await authedUrl(userSyncPath());
+    const res = await fetch(url, {
+      method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(state)
+    });
     if(!res.ok) throw new Error('HTTP '+res.status);
     setSyncStatus('ok');
-  }).catch(err=>setSyncStatus('err', err.message));
+  }catch(err){ setSyncStatus('err', err.message); }
 }
 function scheduleSync(){
   setSyncStatus('pending');
@@ -571,8 +644,10 @@ function scheduleSync(){
   syncTimeout = setTimeout(pushRemote, 1200);
 }
 async function pullRemote(){
+  if(!currentUser) return;
   try{
-    const res = await fetch(`${FIREBASE_URL}/${SYNC_PATH}.json`);
+    const url = await authedUrl(userSyncPath());
+    const res = await fetch(url);
     if(!res.ok) throw new Error('HTTP '+res.status);
     const remote = await res.json();
     if(remote && typeof remote === 'object'){
