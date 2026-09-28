@@ -374,7 +374,7 @@ button{font-family:inherit;cursor:pointer}
 <!-- Video ekle -->
 <div class="modal-bg" id="vidModal"><div class="modal">
   <h3>Add Video</h3>
-  <input id="ytInput" placeholder="YouTube link (can be unlisted)">
+  <input id="ytInput" placeholder="YouTube or Google Drive link">
   <div class="hint">Paste an unlisted YouTube link — it'll show up on all your devices.</div>
   <div class="row"><button class="cancel" onclick="closeModal('vidModal')">Cancel</button><button class="save" onclick="saveVideo()"><span class="ic-save"></span>Save</button></div>
 </div></div>
@@ -986,6 +986,22 @@ function ytId(url){
   m = url.match(/[?&]v=([A-Za-z0-9_-]{6,})/);
   return m ? m[1] : null;
 }
+function driveId(url){
+  if(!url) return null;
+  url = url.trim();
+  let m = url.match(/drive\.google\.com\/file\/d\/([A-Za-z0-9_-]+)/);
+  if(m) return m[1];
+  m = url.match(/[?&]id=([A-Za-z0-9_-]+)/);
+  if(m && url.includes('drive.google.com')) return m[1];
+  return null;
+}
+function videoEmbedUrl(url){
+  const yid = ytId(url);
+  if(yid) return 'https://www.youtube-nocookie.com/embed/'+yid+'?autoplay=1';
+  const did = driveId(url);
+  if(did) return 'https://drive.google.com/file/d/'+did+'/preview';
+  return null;
+}
 function saveVideo(){
   const ex = activeRoutine().exercises.find(x=>x.id===activeExerciseId);
   ex.youtube = document.getElementById('ytInput').value.trim();
@@ -1001,9 +1017,9 @@ function toggleVideo(exId){
     btn.textContent = ICONS.play+' Watch Video';
   } else {
     const ex = activeRoutine().exercises.find(x=>x.id===exId);
-    const vid = ytId(ex.youtube);
-    frame.innerHTML = vid
-      ? `<iframe src="https://www.youtube-nocookie.com/embed/${vid}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`
+    const src = videoEmbedUrl(ex.youtube);
+    frame.innerHTML = src
+      ? `<iframe src="${src}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`
       : '<div style="padding:14px;color:var(--muted);font-size:13px">No video ID found in this link. Check the link.</div>';
     frame.style.display = 'block';
     btn.textContent = '▲ Close';
@@ -1068,7 +1084,7 @@ function exerciseInner(ex, moveHtml){
         <button class="check ${t.done?'done':''}" style="height:38px" onclick="toggleTreadmillDone('${ex.id}')">✓</button>
       </div>`;
   }
-  const videoBlock = ytId(ex.youtube)
+  const videoBlock = videoEmbedUrl(ex.youtube)
     ? `<div style="display:flex;align-items:center;gap:6px">
          <button class="video-thumb" id="vidbtn-${ex.id}" onclick="toggleVideo('${ex.id}')" style="flex:1">${ICONS.play} Watch Video</button>
          <button class="icon-btn" style="font-size:12px;padding:5px 8px" title="Change Video" onclick="openVideoModal('${ex.id}')">${ICONS.edit}</button>
