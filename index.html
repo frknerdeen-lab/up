@@ -416,9 +416,14 @@ button{font-family:inherit;cursor:pointer}
 <!-- Video ekle -->
 <div class="modal-bg" id="vidModal"><div class="modal">
   <h3>Add Video</h3>
-  <input id="ytInput" placeholder="YouTube or Google Drive link">
-  <div class="hint">Paste an unlisted YouTube link — it'll show up on all your devices.</div>
-  <div class="row"><button class="cancel" onclick="closeModal('vidModal')">Cancel</button><button class="save" onclick="saveVideo()"><span class="ic-save"></span>Save</button></div>
+  <input type="file" id="videoFileInput" accept="video/*">
+  <div class="hint">Uploads privately to your account — only you can view it, on any device.</div>
+  <div id="vidUploadStatus" style="margin-top:8px;font-size:13px;color:var(--muted)"></div>
+  <div class="row">
+    <button class="cancel" id="vidRemoveBtn" style="display:none" onclick="removeExerciseVideo()">Remove Video</button>
+    <button class="cancel" onclick="closeModal('vidModal')">Cancel</button>
+    <button class="save" id="vidUploadBtn" onclick="uploadExerciseVideo()"><span class="ic-save"></span>Upload</button>
+  </div>
 </div></div>
 
 <!-- Program ekle/düzenle -->
@@ -1077,53 +1082,87 @@ function deleteExercise(id){
 function openVideoModal(id){
   activeExerciseId = id;
   const ex = activeRoutine().exercises.find(x=>x.id===id);
-  document.getElementById('ytInput').value = ex.youtube || '';
+  document.getElementById('videoFileInput').value = '';
+  document.getElementById('vidUploadStatus').textContent = '';
+  document.getElementById('vidRemoveBtn').style.display = ex.videoPath ? '' : 'none';
   document.getElementById('vidModal').classList.add('show');
 }
-function ytId(url){
-  if(!url) return null;
-  url = url.trim();
-  let m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{6,})/);
-  if(m) return m[1];
-  m = url.match(/[?&]v=([A-Za-z0-9_-]{6,})/);
-  return m ? m[1] : null;
+const STORAGE_BUCKET = 'upapp-d7286.firebasestorage.app';
+function exerciseVideoPath(exId){ return `users/${currentUser.uid}/videos/${exId}`; }
+async function storageAuthHeaders(extra){
+  const token = await currentUser.getIdToken();
+  return Object.assign({'Authorization': 'Bearer '+token}, extra||{});
 }
-function driveId(url){
-  if(!url) return null;
-  url = url.trim();
-  let m = url.match(/drive\.google\.com\/file\/d\/([A-Za-z0-9_-]+)/);
-  if(m) return m[1];
-  m = url.match(/[?&]id=([A-Za-z0-9_-]+)/);
-  if(m && url.includes('drive.google.com')) return m[1];
-  return null;
+async function uploadExerciseVideo(){
+  const exId = activeExerciseId;
+  const fileInput = document.getElementById('videoFileInput');
+  const file = fileInput.files[0];
+  const statusEl = document.getElementById('vidUploadStatus');
+  if(!file){ statusEl.textContent = 'Pick a video file first.'; return; }
+  statusEl.textContent = 'Uploading…';
+  try{
+    const path = exerciseVideoPath(exId);
+    const headers = await storageAuthHeaders({'Content-Type': file.type || 'video/mp4'});
+    const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o?name=${encodeURIComponent(path)}`;
+    const res = await fetch(uploadUrl, { method:'POST', headers, body: file });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const ex = activeRoutine().exercises.find(x=>x.id===exId);
+    ex.videoPath = path;
+    ex.youtube = ''; // legacy link field no longer used going forward
+    save();
+    closeModal('vidModal');
+    render();
+  }catch(e){
+    statusEl.textContent = 'Upload failed: ' + e.message;
+  }
 }
-function videoEmbedUrl(url){
-  const yid = ytId(url);
-  if(yid) return 'https://www.youtube-nocookie.com/embed/'+yid+'?autoplay=1';
-  const did = driveId(url);
-  if(did) return 'https://drive.google.com/file/d/'+did+'/preview';
-  return null;
-}
-function saveVideo(){
-  const ex = activeRoutine().exercises.find(x=>x.id===activeExerciseId);
-  ex.youtube = document.getElementById('ytInput').value.trim();
+async function removeExerciseVideo(){
+  const exId = activeExerciseId;
+  const ex = activeRoutine().exercises.find(x=>x.id===exId);
+  if(!ex.videoPath){ closeModal('vidModal'); return; }
+  try{
+    const headers = await storageAuthHeaders();
+    const delUrl = `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(ex.videoPath)}`;
+    await fetch(delUrl, { method:'DELETE', headers });
+  }catch(e){ console.error('video delete failed', e); }
+  ex.videoPath = '';
   save(); closeModal('vidModal'); render();
 }
-function toggleVideo(exId){
+async function toggleVideo(exId){
   const ex = activeRoutine().exercises.find(x=>x.id===exId);
   const frame = document.getElementById('frame-'+exId);
   const btn = document.getElementById('vidbtn-'+exId);
   const isOpen = frame.style.display === 'block';
   if(isOpen){
     frame.style.display = 'none';
+    const v = frame.querySelector('video');
+    if(v && v.src) URL.revokeObjectURL(v.src);
     frame.innerHTML = '';
     btn.textContent = ICONS.play+' Watch Video';
     openVideoIds.delete(exId);
-  } else {
-    const src = videoEmbedUrl(ex.youtube);
-    frame.innerHTML = src
-      ? `<iframe src="${src}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe>`
-      : '<div style="padding:14px;color:var(--muted);font-size:13px">No video ID found in this link. Check the link.</div>';
+    return;
+  }
+  if(!ex.videoPath){
+    frame.innerHTML = '<div style="padding:14px;color:var(--muted);font-size:13px">No video attached yet.</div>';
+    frame.style.display = 'block';
+    btn.textContent = '▲ Close';
+    openVideoIds.add(exId);
+    return;
+  }
+  btn.textContent = 'Loading…';
+  try{
+    const headers = await storageAuthHeaders();
+    const mediaUrl = `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(ex.videoPath)}?alt=media`;
+    const res = await fetch(mediaUrl, { headers });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    frame.innerHTML = `<video src="${objUrl}" controls autoplay playsinline></video>`;
+    frame.style.display = 'block';
+    btn.textContent = '▲ Close';
+    openVideoIds.add(exId);
+  }catch(e){
+    frame.innerHTML = `<div style="padding:14px;color:var(--muted);font-size:13px">Couldn't load video: ${esc(e.message)}</div>`;
     frame.style.display = 'block';
     btn.textContent = '▲ Close';
     openVideoIds.add(exId);
@@ -1202,14 +1241,13 @@ function exerciseInner(ex, moveHtml){
         <button class="check ${t.done?'done':''}" style="height:38px" onclick="toggleTreadmillDone('${ex.id}')">✓</button>
       </div>`;
   }
-  const vidSrc = videoEmbedUrl(ex.youtube);
-  const vidIsOpen = vidSrc && openVideoIds.has(ex.id);
-  const videoBlock = vidSrc
+  const hasVideo = !!ex.videoPath;
+  const videoBlock = hasVideo
     ? `<div style="display:flex;align-items:center;gap:6px">
-         <button class="video-thumb" id="vidbtn-${ex.id}" onclick="toggleVideo('${ex.id}')" style="flex:1">${vidIsOpen ? '▲ Close' : ICONS.play+' Watch Video'}</button>
+         <button class="video-thumb" id="vidbtn-${ex.id}" onclick="toggleVideo('${ex.id}')" style="flex:1">${ICONS.play} Watch Video</button>
          <button class="icon-btn" style="font-size:12px;padding:5px 8px" title="Change Video" onclick="openVideoModal('${ex.id}')">${ICONS.edit}</button>
        </div>
-       <div class="video-frame" id="frame-${ex.id}" style="display:${vidIsOpen?'block':'none'}">${vidIsOpen ? `<iframe src="${vidSrc}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe>` : ''}</div>`
+       <div class="video-frame" id="frame-${ex.id}" style="display:none"></div>`
     : `<button class="video-thumb" onclick="openVideoModal('${ex.id}')">${ICONS.add} Add Video</button>`;
   const prevNote = getPrevNote(ex.name);
   const prevNoteBtn = prevNote ? `<button class="icon-btn note-btn" title="Last time: ${esc(prevNote)}" onclick="insertPrevNote('${ex.id}')">${ICONS.note}</button>` : '';
