@@ -634,6 +634,17 @@ async function registerFcmToken(){
     if(Notification.permission !== 'granted') return null;
     const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
     const messaging = firebase.messaging();
+    // onBackgroundMessage (in firebase-messaging-sw.js) only fires while the tab is
+    // NOT focused/open. When UP is open and focused, the push arrives here instead —
+    // without this, nothing would show up at all if the app happens to be open.
+    if(!window.__fcmForegroundHandlerAttached){
+      window.__fcmForegroundHandlerAttached = true;
+      messaging.onMessage(payload => {
+        const title = (payload.data && payload.data.title) || 'UP';
+        const body = (payload.data && payload.data.body) || '';
+        navigator.serviceWorker.ready.then(r => r.showNotification(title, { body, tag: 'up-reminder', renotify: true }));
+      });
+    }
     const token = await messaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: reg });
     if(token){
       // Use the token itself (sanitized) as the RTDB key so re-registering the
