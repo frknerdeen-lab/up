@@ -17,8 +17,11 @@ const messaging = firebase.messaging();
 // (closed, backgrounded, or phone locked). This is what makes reminders
 // work even when UP isn't open.
 messaging.onBackgroundMessage((payload) => {
-  const title = (payload.notification && payload.notification.title) || 'UP';
-  const body = (payload.notification && payload.notification.body) || '';
+  // Read from "data", not "notification" — a "notification" payload makes the
+  // browser auto-display its own copy in addition to this one, causing a
+  // duplicate. Using "data" only means this handler is the sole source.
+  const title = (payload.data && payload.data.title) || 'UP';
+  const body = (payload.data && payload.data.body) || '';
   self.registration.showNotification(title, {
     body,
     tag: 'up-reminder',
