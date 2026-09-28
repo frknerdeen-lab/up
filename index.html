@@ -486,7 +486,7 @@ function normalizeState(s){
     if(!Array.isArray(e.exercises)) e.exercises = [];
     e.exercises.forEach(ex=>{
       if(ex.type==='treadmill'){ if(!ex.treadmill || typeof ex.treadmill!=='object') ex.treadmill = {}; }
-      else if(!Array.isArray(ex.sets)) ex.sets = [];
+      if(!Array.isArray(ex.sets)) ex.sets = [];
     });
   });
   if(!Array.isArray(s.measurements)) s.measurements = [];
@@ -634,7 +634,7 @@ function safeRun(fn, viewId){
   catch(err){
     console.error(err);
     const el = document.getElementById(viewId);
-    if(el) el.innerHTML = `<div class="stat-section" style="border-color:#ef4444"><div style="color:#ef4444;font-weight:700;margin-bottom:8px">Bir hata oldu, bu ekranı gösteremedim.</div><div class="muted" style="font-size:12px;white-space:pre-wrap;word-break:break-word">${esc(err.message||String(err))}</div></div>`;
+    if(el) el.innerHTML = `<div class="stat-section" style="border-color:#ef4444"><div style="color:#ef4444;font-weight:700;margin-bottom:8px">Bir hata oldu, bu ekranı gösteremedim.</div><div class="muted" style="font-size:12px;white-space:pre-wrap;word-break:break-word">${esc((err && err.stack) || err.message || String(err))}</div></div>`;
   }
 }
 function renderApp(){
