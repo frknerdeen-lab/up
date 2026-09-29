@@ -93,9 +93,11 @@ button{font-family:inherit;cursor:pointer}
 .routine-card.off-day:hover{border-color:var(--border);box-shadow:0 8px 28px rgba(0,0,0,.35)}
 .routine-card.completed-day{opacity:.6;cursor:default}
 .routine-card.completed-day:hover{border-color:var(--border);box-shadow:0 8px 28px rgba(0,0,0,.35)}
-.routine-card.today-pending{position:relative;z-index:0}
-.routine-card.today-pending::before{content:'';position:absolute;inset:-3px;border-radius:20px;background:conic-gradient(from 0deg,transparent 0%,var(--accent) 12%,transparent 30%);filter:blur(7px);z-index:-1;animation:todayGlowSpin 3s linear infinite}
-@keyframes todayGlowSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@property --glow-angle{syntax:'<angle>';inherits:false;initial-value:0deg}
+.routine-card.today-pending{position:relative}
+.routine-card.today-pending::before,.routine-card.today-pending::after{content:'';position:absolute;inset:-1px;border-radius:inherit;padding:2px;background:conic-gradient(from var(--glow-angle),transparent 0deg,transparent 240deg,var(--accent) 320deg,#fff 352deg,transparent 360deg);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:todayGlowSpin 3.5s linear infinite;pointer-events:none}
+.routine-card.today-pending::after{filter:blur(6px);opacity:.9}
+@keyframes todayGlowSpin{to{--glow-angle:360deg}}
 .week-cards-wrap{display:flex;flex-direction:column;gap:14px}
 .add-tile{width:44px;height:44px;flex-shrink:0;background:var(--card);border:1.5px dashed var(--accent);color:var(--accent);border-radius:12px;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-left:auto}
 .section-label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin:4px 0 10px;font-weight:700}
