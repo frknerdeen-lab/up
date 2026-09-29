@@ -2066,9 +2066,9 @@ function renderMusclesBlock(){
         <span class="chevron ${mmPanelOpen?'open':''}">▾</span>
       </div>
       ${mmPanelOpen ? `<div class="mx-list">${rows}</div>` : ''}
-      <div class="mx-card-foot">
+      ${mmPanelOpen ? `<div class="mx-card-foot">
         <button class="mx-links-btn" onclick="openMuscleEditor()">Muscle Links${unmatched?` <span class="mm-badge">${unmatched} unmatched</span>`:''}</button>
-      </div>
+      </div>` : ''}
     </div>`;
 }
 function refreshMusclesBlock(){
@@ -2093,6 +2093,14 @@ function onMuscleTap(e){
 // per set), S = secondary (half a point per set). A per-exercise override
 // saved in state.exerciseMuscles always takes precedence.
 const MUSCLE_RULES = [
+  [/jumping ?jacks?|star jump|kriko/, ['calves'], ['glutes','quads','adductors','sideDelts']],
+  [/burpee/, ['quads','chest'], ['glutes','triceps','frontDelts','abs']],
+  [/mountain climber/, ['abs'], ['frontDelts','quads','obliques']],
+  [/jump ?rope|ip atla|skipping|high knees?/, ['calves'], ['quads']],
+  [/box jump|jump squat|squat jump|broad jump/, ['quads','glutes'], ['calves']],
+  [/wall ?sit|duvar/, ['quads'], ['glutes']],
+  [/swing/, ['glutes','hamstrings'], ['lowerBack','frontDelts']],
+  [/overhead.*extension|lying.*extension|(dumb+ell|cable|rope|\bez\b).*tricep|tricep.*extension/, ['triceps'], []],
   [/close[- ]?grip.*(bench|press)|dar tutu/, ['triceps','chest'], ['frontDelts']],
   [/incline|eğimli.*(press|bench)/, ['chest','frontDelts'], ['triceps']],
   [/\bdips?\b|paralel/, ['triceps','chest'], ['frontDelts']],
@@ -2106,23 +2114,23 @@ const MUSCLE_RULES = [
   [/overhead press|\bohp\b|military|shoulder press|omuz press|arnold|push press/, ['frontDelts','sideDelts'], ['triceps','traps']],
   [/romanian|\brdl\b|stiff|good ?morning/, ['hamstrings','glutes'], ['lowerBack']],
   [/deadlift|ölü|rack pull/, ['lowerBack','glutes','hamstrings'], ['traps','forearms','quads']],
-  [/hyper ?extension|back extension|\bbel\b/, ['lowerBack'], ['glutes','hamstrings']],
-  [/pull[- ]?down|\blat\b|pull[- ]?up|chin[- ]?up|barfiks|pullover/, ['lats'], ['biceps','upperBack']],
+  [/hyper ?extension|back extension|\bbel\b|bird ?dog|superman/, ['lowerBack'], ['glutes','hamstrings']],
+  [/pull[- ]?down|\blat\b|pull[- ]?up|chin[- ]?up|barfiks|pull ?over/, ['lats'], ['biceps','upperBack']],
   [/row|kürek|t-bar/, ['upperBack','lats'], ['rearDelts','biceps']],
   [/leg curl|hamstring curl|lying curl|seated curl|nordic|bacak bük/, ['hamstrings'], ['calves']],
   [/leg extension|bacak aç|quad extension/, ['quads'], []],
-  [/hip thrust|glute bridge|köprü|glute kickback|kalça/, ['glutes'], ['hamstrings']],
+  [/hip thrust|glute bridge|köprü|glute kickback|kalça|clamshell|donkey kick|frog pump|fire hydrant/, ['glutes'], ['hamstrings']],
   [/abduct/, ['glutes'], []],
   [/adduct/, ['adductors'], []],
   [/lunge|split squat|bulgarian|step[- ]?up|hamle/, ['quads','glutes'], ['hamstrings','adductors']],
   [/squat|leg press|hack|çömel|sissy/, ['quads','glutes'], ['adductors','lowerBack']],
-  [/calf|baldır/, ['calves'], []],
+  [/calf|baldır|tibialis|toe raise/, ['calves'], []],
   [/tricep|push ?down|press ?down|skull|french|kickback|overhead extension|arka kol/, ['triceps'], []],
   [/hammer|çekiç/, ['biceps','forearms'], []],
   [/curl|bicep|ön kol curl|pazu/, ['biceps'], ['forearms']],
   [/wrist|forearm|ön kol|farmer|grip/, ['forearms'], []],
-  [/russian twist|oblique|woodchop|side bend|yan karın/, ['obliques'], ['abs']],
-  [/crunch|sit[- ]?up|plank|leg raise|knee raise|\babs?\b|karın|hanging|ab wheel|mekik/, ['abs'], ['obliques']]
+  [/russian twist|oblique|woodchop|side bend|yan karın|side plank|yan plank/, ['obliques'], ['abs']],
+  [/crunch|sit[- ]?up|plank|leg raise|knee raise|\babs?\b|karın|hanging|ab wheel|mekik|dead ?bug|hollow|v[- ]?ups?\b|flutter kick|toe touch/, ['abs'], ['obliques']]
 ];
 function exerciseMuscleKey(name){ return String(name||'').trim().toLowerCase(); }
 function autoMusclesFor(name){
