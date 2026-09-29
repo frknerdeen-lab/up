@@ -2093,6 +2093,7 @@ function onMuscleTap(e){
 // per set), S = secondary (half a point per set). A per-exercise override
 // saved in state.exerciseMuscles always takes precedence.
 const MUSCLE_RULES = [
+  // Cardio / conditioning
   [/jumping ?jacks?|star jump|kriko/, ['calves'], ['glutes','quads','adductors','sideDelts']],
   [/burpee/, ['quads','chest'], ['glutes','triceps','frontDelts','abs']],
   [/mountain climber/, ['abs'], ['frontDelts','quads','obliques']],
@@ -2100,35 +2101,43 @@ const MUSCLE_RULES = [
   [/box jump|jump squat|squat jump|broad jump/, ['quads','glutes'], ['calves']],
   [/wall ?sit|duvar/, ['quads'], ['glutes']],
   [/swing/, ['glutes','hamstrings'], ['lowerBack','frontDelts']],
-  [/overhead.*extension|lying.*extension|(dumb+ell|cable|rope|\bez\b).*tricep|tricep.*extension/, ['triceps'], []],
-  [/close[- ]?grip.*(bench|press)|dar tutu/, ['triceps','chest'], ['frontDelts']],
-  [/incline|eğimli.*(press|bench)/, ['chest','frontDelts'], ['triceps']],
-  [/\bdips?\b|paralel/, ['triceps','chest'], ['frontDelts']],
-  [/bench|chest press|göğüs|push[- ]?up|şınav|floor press/, ['chest'], ['triceps','frontDelts']],
-  [/fly|flye|pec ?deck|cross ?over|cable cross|kelebek/, ['chest'], ['frontDelts']],
-  [/rear delt|reverse fly|face ?pull|arka omuz/, ['rearDelts'], ['upperBack','traps']],
-  [/lateral raise|side raise|yan açış|yana açış|yan kaldır/, ['sideDelts'], ['traps']],
+  // Calves and forearms first, so "leg press calf raise" / "wrist curl" don't fall into leg press / curl
+  [/calf|baldır|tibialis|toe raise/, ['calves'], []],
+  [/wrist|forearm|ön kol|farmer|gripper|grip (trainer|strength)|hand grip|reverse curl/, ['forearms'], ['biceps']],
+  // Shoulders (before chest, so "rear delt fly" / "reverse pec deck" aren't chest)
+  [/rear delt|reverse (fly|flye|pec ?deck)|face ?pull|arka omuz/, ['rearDelts'], ['upperBack','traps']],
+  [/lateral raise|side raise|yan açış|yana açış|yan kaldır|lu raise|y raise/, ['sideDelts'], ['traps']],
   [/front raise|ön açış|öne kaldır/, ['frontDelts'], []],
   [/upright row/, ['sideDelts','traps'], ['biceps']],
   [/shrug|silk/, ['traps'], ['forearms']],
-  [/overhead press|\bohp\b|military|shoulder press|omuz press|arnold|push press/, ['frontDelts','sideDelts'], ['triceps','traps']],
-  [/romanian|\brdl\b|stiff|good ?morning/, ['hamstrings','glutes'], ['lowerBack']],
+  [/overhead press|\bohp\b|military|shoulder press|omuz press|arnold|push press|\bz[- ]?press|seated (dumb+ell|db) press/, ['frontDelts','sideDelts'], ['triceps','traps']],
+  // Triceps specifics before chest presses
+  [/close[- ]?grip.*(bench|press)|dar tutu|\bjm press|tate press/, ['triceps','chest'], ['frontDelts']],
+  [/overhead.*extension|lying.*extension|(dumb+ell|cable|rope|\bez\b).*tricep|tricep.*extension/, ['triceps'], []],
+  [/\bdips?\b|paralel/, ['triceps','chest'], ['frontDelts']],
+  // Chest
+  [/incline.*(press|bench|fly|flye)|eğimli/, ['chest','frontDelts'], ['triceps']],
+  [/bench|chest press|göğüs|push[- ]?up|şınav|floor press|(flat|decline).*press|(dumb+ell|db) press|machine press|landmine press|svend/, ['chest'], ['triceps','frontDelts']],
+  [/fly|flye|pec ?deck|cross ?over|cable cross|kelebek/, ['chest'], ['frontDelts']],
+  // Hinge / back
+  [/romanian|\brdl\b|stiff|good ?morning|glute[- ]?ham|\bghr\b/, ['hamstrings','glutes'], ['lowerBack']],
   [/deadlift|ölü|rack pull/, ['lowerBack','glutes','hamstrings'], ['traps','forearms','quads']],
   [/hyper ?extension|back extension|\bbel\b|bird ?dog|superman/, ['lowerBack'], ['glutes','hamstrings']],
   [/pull[- ]?down|\blat\b|pull[- ]?up|chin[- ]?up|barfiks|pull ?over/, ['lats'], ['biceps','upperBack']],
   [/row|kürek|t-bar/, ['upperBack','lats'], ['rearDelts','biceps']],
+  // Legs
   [/leg curl|hamstring curl|lying curl|seated curl|nordic|bacak bük/, ['hamstrings'], ['calves']],
   [/leg extension|bacak aç|quad extension/, ['quads'], []],
   [/hip thrust|glute bridge|köprü|glute kickback|kalça|clamshell|donkey kick|frog pump|fire hydrant/, ['glutes'], ['hamstrings']],
   [/abduct/, ['glutes'], []],
   [/adduct/, ['adductors'], []],
   [/lunge|split squat|bulgarian|step[- ]?up|hamle/, ['quads','glutes'], ['hamstrings','adductors']],
-  [/squat|leg press|hack|çömel|sissy/, ['quads','glutes'], ['adductors','lowerBack']],
-  [/calf|baldır|tibialis|toe raise/, ['calves'], []],
-  [/tricep|push ?down|press ?down|skull|french|kickback|overhead extension|arka kol/, ['triceps'], []],
+  [/squat|leg press|bacak press|hack|çömel|sissy/, ['quads','glutes'], ['adductors','lowerBack']],
+  // Arms
+  [/tricep|push ?down|press ?down|skull|french|kickback|arka kol/, ['triceps'], []],
   [/hammer|çekiç/, ['biceps','forearms'], []],
-  [/curl|bicep|ön kol curl|pazu/, ['biceps'], ['forearms']],
-  [/wrist|forearm|ön kol|farmer|grip/, ['forearms'], []],
+  [/curl|bicep|pazu/, ['biceps'], ['forearms']],
+  // Core
   [/russian twist|oblique|woodchop|side bend|yan karın|side plank|yan plank/, ['obliques'], ['abs']],
   [/crunch|sit[- ]?up|plank|leg raise|knee raise|\babs?\b|karın|hanging|ab wheel|mekik|dead ?bug|hollow|v[- ]?ups?\b|flutter kick|toe touch/, ['abs'], ['obliques']]
 ];
