@@ -93,6 +93,9 @@ button{font-family:inherit;cursor:pointer}
 .routine-card.off-day:hover{border-color:var(--border);box-shadow:0 8px 28px rgba(0,0,0,.35)}
 .routine-card.completed-day{opacity:.6;cursor:default}
 .routine-card.completed-day:hover{border-color:var(--border);box-shadow:0 8px 28px rgba(0,0,0,.35)}
+.routine-card.today-pending{position:relative;z-index:0}
+.routine-card.today-pending::before{content:'';position:absolute;inset:-3px;border-radius:20px;background:conic-gradient(from 0deg,transparent 0%,var(--accent) 12%,transparent 30%);filter:blur(7px);z-index:-1;animation:todayGlowSpin 3s linear infinite}
+@keyframes todayGlowSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .week-cards-wrap{display:flex;flex-direction:column;gap:14px}
 .add-tile{width:44px;height:44px;flex-shrink:0;background:var(--card);border:1.5px dashed var(--accent);color:var(--accent);border-radius:12px;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-left:auto}
 .section-label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin:4px 0 10px;font-weight:700}
@@ -287,14 +290,14 @@ button{font-family:inherit;cursor:pointer}
 .habit-note-preview{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
 .habit-row.done .habit-name{color:var(--muted);text-decoration:line-through}
 .habit-streak{font-size:12px;color:var(--muted);white-space:nowrap}
-.streak-hero-wrap{padding:10px 6px 18px;overflow:hidden}
-.streak-hero{position:relative;overflow:hidden;touch-action:pan-y;padding-bottom:30px}
-.streak-hero-track{display:flex;transition:transform .25s ease}
-.streak-hero-page{flex:0 0 100%;display:flex;align-items:flex-end;justify-content:space-between;gap:14px}
-.streak-hero-unit{font-size:22px;font-weight:900;letter-spacing:.5px;color:var(--text);line-height:1.15;margin-bottom:32px}
-.streak-hero-number{font-size:112px;font-weight:900;line-height:.78;letter-spacing:-3px;text-align:right;background:linear-gradient(180deg,var(--text) 15%,var(--bg) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;flex-shrink:0}
-.streak-hero-fixed{position:absolute;left:0;bottom:0;font-size:22px;font-weight:900;letter-spacing:.5px;color:var(--text);line-height:1.15}
-.streak-hero-dots{display:flex;justify-content:center;gap:6px;margin-top:6px}
+.streak-hero-wrap{min-height:78vh;display:flex;flex-direction:column;justify-content:center;padding:6px 4px 24px;overflow:hidden}
+.streak-hero{position:relative;overflow:hidden;touch-action:pan-y;height:min(62vh,540px);width:100%}
+.streak-hero-track{display:flex;height:100%;transition:transform .25s ease}
+.streak-hero-page{flex:0 0 100%;position:relative;display:flex;align-items:center;justify-content:center}
+.streak-hero-number{font-size:min(50vw,400px);font-weight:900;line-height:.78;letter-spacing:-6px;text-align:center;background:linear-gradient(180deg,var(--text) 8%,var(--bg) 102%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.streak-hero-unit{position:absolute;left:9%;bottom:60px;font-size:clamp(26px,7.5vw,42px);font-weight:900;letter-spacing:1px;color:var(--text);line-height:1.05}
+.streak-hero-fixed{position:absolute;left:9%;bottom:14px;font-size:clamp(26px,7.5vw,42px);font-weight:900;letter-spacing:1px;color:var(--text);line-height:1.05}
+.streak-hero-dots{display:flex;justify-content:center;gap:6px;margin-top:16px}
 .streak-hero-dot{width:6px;height:6px;border-radius:50%;background:var(--border);cursor:pointer}
 .streak-hero-dot.active{background:var(--accent)}
 </style>
@@ -1025,6 +1028,7 @@ function renderHome(){
 }
 function renderOneWeekBlock(block){
   const weekDates = getWeekDates(todayStr());
+  const todayIdx = (new Date().getDay()+6)%7; // Monday=0 ... Sunday=6
   const dayCards = DAY_NAMES.map((name,i)=>{
     const slot = block.plan[i];
     if(slot===null || slot===undefined){
@@ -1061,7 +1065,8 @@ function renderOneWeekBlock(block){
         <div class="routine-card-sub">Done · ${esc(r.name)}</div>
       </div>`;
     }
-    return `<div class="routine-card" onclick="openRoutine('${r.id}')">
+    const isTodayPending = i===todayIdx;
+    return `<div class="routine-card ${isTodayPending?'today-pending':''}" onclick="openRoutine('${r.id}')">
       <div class="day-row">
         <span class="day-label">${name}</span>
         <button class="day-close-btn" onclick="event.stopPropagation();setDayOff('${block.id}',${i})" title="Make it a rest day">${ICONS.close}</button>
@@ -1818,7 +1823,7 @@ function computeStreakPages(streak){
 
 function renderStreakHero(streak){
   if(streak<=0){
-    return `<div class="streak-hero-wrap" style="display:flex;align-items:center;gap:12px">
+    return `<div class="streak-hero-wrap" style="min-height:0;display:flex;align-items:center;gap:12px;padding:16px 6px">
          <div>
            <div style="font-size:15px;font-weight:700;color:var(--muted)">No active streak</div>
            <div style="font-size:12px;color:var(--muted)">Complete today's scheduled workout to start one</div>
