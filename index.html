@@ -260,6 +260,8 @@ button{font-family:inherit;cursor:pointer}
 .cal-cell.today{border:1px solid var(--accent)}
 .cal-cell.cal-done-workout{background:var(--accent);color:#fff;font-weight:700}
 .cal-cell.cal-done-run{background:#fff;color:var(--accent);font-weight:700}
+.cal-cell.today.cal-done-workout{border-color:#fff;box-shadow:inset 0 0 0 1px #fff}
+.cal-cell.today.cal-done-run{box-shadow:inset 0 0 0 1px var(--accent)}
 .cal-dot{width:5px;height:5px;border-radius:50%;background:var(--green);margin-top:2px}
 
 /* ============ İSTATİSTİK PANELİ ============ */
@@ -2051,7 +2053,7 @@ function renderCalendar(){
     const hasLog = dayLogs.length>0;
     const isToday = dateStr===today;
     let extraClass = '';
-    if(!isToday && hasLog){
+    if(hasLog){ // colors as soon as the workout is logged (same rule as the Done card), even today
       const hasWorkout = dayLogs.some(e=>e.exercises.some(ex=>ex.type!=='treadmill'));
       const hasRun = dayLogs.some(e=>e.exercises.some(ex=>ex.type==='treadmill'));
       if(hasWorkout) extraClass = 'cal-done-workout';
