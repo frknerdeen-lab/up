@@ -322,6 +322,7 @@ button{font-family:inherit;cursor:pointer}
 .cal-tile{overflow:hidden;position:relative;touch-action:pan-y;padding-left:0;padding-right:0}
 .cal-track{display:flex;transition:transform .25s ease}
 .cal-page{flex:0 0 100%;padding:0 9px;box-sizing:border-box}
+.cal-protein{font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap;margin-top:1px}
 .cal-dots{display:flex;gap:5px;justify-content:center;margin-top:5px}
 .cal-dots span{width:6px;height:6px;border-radius:50%;background:var(--border);cursor:pointer}
 .cal-dots span.on{background:var(--accent)}
@@ -2646,20 +2647,21 @@ function navyBodyFat(sex, heightCm, waist, neck, hips){
   if(!(waist>0 && neck>0) || waist-neck<=0) return NaN;
   return 495/(1.0324 - 0.19077*L(waist-neck) + 0.15456*L(heightCm)) - 450;
 }
+// Activity comes from the weekly workout plan (what you do in a full week), not
+// from the log, so a new or half-finished week doesn't understate it.
 // Desk-job baseline 1.2; each weekly weight-training day adds 0.0875 (4 days = 1.55,
-// the classic "moderate"); each weekly treadmill day adds a smaller 0.015 (low-intensity
-// cardio), capped at 1.9.
+// the classic "moderate"); each weekly treadmill day adds a smaller 0.015
+// (low-intensity cardio), capped at 1.9.
 function autoActivity(){
-  const end = new Date(todayStr()), start = new Date(end); start.setDate(start.getDate()-27);
-  const startStr = dateStrOf(start);
-  const recent = state.workoutLog.filter(e=>e.date>=startStr);
-  const liftDays = new Set(recent.filter(e=>(e.exercises||[]).some(ex=>ex.type!=='treadmill' && !isWarmupExercise(ex.name) && (ex.sets||[]).length)).map(e=>e.date));
-  const runDays = new Set(recent.filter(e=>(e.exercises||[]).some(ex=>ex.type==='treadmill')).map(e=>e.date));
-  const first = state.workoutLog.reduce((m,e)=>(!m||e.date<m)?e.date:m, null);
-  // Average over the weeks actually covered, so a new user isn't diluted over 4 empty weeks.
-  const spanDays = first ? Math.min(28, Math.round((end - new Date(first>startStr?first:startStr))/86400000)+1) : 28;
-  const weeks = Math.max(1, spanDays/7);
-  const lifts = liftDays.size/weeks, runs = runDays.size/weeks;
+  const block = state.weekBlocks.find(b=>b.id===statsBlockId) || state.weekBlocks[0];
+  let lifts = 0, runs = 0;
+  ((block && block.plan) || []).forEach(slot=>{
+    const r = slot && slot!=='OFF' && state.routines.find(x=>x.id===slot);
+    if(!r) return;
+    const ex = r.exercises || [];
+    if(ex.some(x=>x.type!=='treadmill' && !isWarmupExercise(x.name))) lifts++;
+    if(ex.some(x=>x.type==='treadmill')) runs++;
+  });
   return { factor: Math.min(1.9, 1.2 + 0.0875*lifts + 0.015*runs), lifts, runs };
 }
 let calPage = 1; // 0 lose, 1 maintain, 2 gain
@@ -2686,12 +2688,10 @@ function renderBmiBox(){
     const pages = [['Lose', r(tdee-500)], ['Maintain', r(tdee)], ['Gain', r(tdee+250)]];
     calT = `<div class="body-tile cal-tile" ontouchstart="calTouch(event,0)" ontouchend="calTouch(event,1)">
       <div class="cal-track" style="transform:translateX(${-calPage*100}%)">
-        ${pages.map(([lab,kc])=>`<div class="cal-page"><div class="bmi-label">${lab}</div><div class="body-main">${kc}<small> kcal</small></div></div>`).join('')}
+        ${pages.map(([lab,kc],i)=>`<div class="cal-page"><div class="bmi-label">${lab}</div><div class="body-main">${kc}<small> kcal</small></div>${i===1?`<div class="cal-protein">Protein ${Math.round(w*1.6)}–${Math.round(w*2.2)} g</div>`:''}</div>`).join('')}
       </div>
       <div class="cal-dots">${pages.map((_,i)=>`<span class="${i===calPage?'on':''}" onclick="setCalPage(${i})"></span>`).join('')}</div>
     </div>`;
-    const wk = n => (Math.round(n*10)/10).toString().replace(/\.0$/,'');
-    protein = `<div class="body-protein">Protein <b>${Math.round(w*1.6)}–${Math.round(w*2.2)} g</b> / day · activity from your log: ${wk(act.lifts)} lifting + ${wk(act.runs)} treadmill days/week</div>`;
   }
   const missingProfile = !(hcm>0) || !(age>0) || !sex;
   el.innerHTML = `
@@ -2716,7 +2716,7 @@ function openProfile(){
     <label>Sex<span class="mm-seg body-sex">
       <button class="${state.sex==='m'?'on':''}" onclick="setBodyProfile('sex','m');openProfile()">Male</button>
       <button class="${state.sex==='f'?'on':''}" onclick="setBodyProfile('sex','f');openProfile()">Female</button></span></label>
-    <div class="body-hint" style="text-align:left">Used for BMI, body fat and calories. Your activity level is worked out from your logged workouts.</div>`;
+    <div class="body-hint" style="text-align:left">Used for BMI, body fat and calories. Your activity level is worked out from your workout plan.</div>`;
   document.getElementById('profileModal').classList.add('show');
 }
 function setBodyProfile(field, v){
