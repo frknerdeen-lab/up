@@ -1801,6 +1801,14 @@ function isActiveDay(dateStr){
   return hasWorkout || hasHabit;
 }
 let statsBlockId = null;
+// Logs whose day was later removed from every plan (e.g. a day turned into a rest
+// day and re-added, which creates a new routine) would otherwise vanish from Stats
+// and break the streak even though the calendar still shows them.
+function orphanRoutineIds(){
+  const inPlans = new Set();
+  state.weekBlocks.forEach(b=>(b.plan||[]).forEach(v=>{ if(v && v!=='OFF') inPlans.add(v); }));
+  return [...new Set(state.workoutLog.map(e=>e.routineId).filter(id=>id && !inPlans.has(id)))];
+}
 function getBlockRoutineIds(blockId){
   const b = state.weekBlocks.find(x=>x.id===blockId);
   if(!b) return [];
@@ -1893,7 +1901,8 @@ function computeWorkoutStreak(){
   const block = state.weekBlocks.find(b=>b.id===statsBlockId) || state.weekBlocks[0];
   if(!block || !Array.isArray(block.plan)) return 0;
   const planIds = block.plan.filter(v=>v && v!=='OFF');
-  const planLogs = state.workoutLog.filter(e=>planIds.includes(e.routineId));
+  const orphans = new Set(orphanRoutineIds());
+  const planLogs = state.workoutLog.filter(e=>planIds.includes(e.routineId) || orphans.has(e.routineId));
   if(!planLogs.length) return 0;
   const firstDate = planLogs.reduce((m,e)=>e.date<m?e.date:m, planLogs[0].date);
   let streak = 0;
@@ -1906,7 +1915,7 @@ function computeWorkoutStreak(){
     const isWorkoutDay = slot && slot!=='OFF' && state.routines.some(r=>r.id===slot);
     if(!isWorkoutDay){
       streak++; // rest day (or unplanned day) keeps the chain going
-    } else if(planLogs.some(e=>e.routineId===slot && e.date===dateStr)){
+    } else if(planLogs.some(e=>(e.routineId===slot || orphans.has(e.routineId)) && e.date===dateStr)){
       streak++;
     } else if(i!==0){
       break; // a scheduled workout was skipped
@@ -2360,7 +2369,8 @@ function renderStats(){
   if(!statsBlockId || !state.weekBlocks.some(b=>b.id===statsBlockId)) statsBlockId = state.weekBlocks[0].id;
   const routineIds = getBlockRoutineIds(statsBlockId);
 
-  const filteredLog = state.workoutLog.filter(e=>routineIds.includes(e.routineId));
+  const logRoutineIds = routineIds.concat(orphanRoutineIds()); // plan days + days that were since removed from every plan
+  const filteredLog = state.workoutLog.filter(e=>logRoutineIds.includes(e.routineId));
   const totalVolume = filteredLog.reduce((a,e)=>a+e.exercises.reduce((b,ex)=>b+ex.sets.reduce((c,s)=>c+(parseFloat(s.kg)||0)*(parseFloat(s.reps)||0),0),0),0);
   const totalSets = filteredLog.reduce((a,e)=>a+e.exercises.reduce((b,ex)=>b+ex.sets.length,0),0);
   const totalReps = filteredLog.reduce((a,e)=>a+e.exercises.reduce((b,ex)=>b+ex.sets.reduce((c,s)=>c+(parseFloat(s.reps)||0),0),0),0);
@@ -2379,15 +2389,15 @@ function renderStats(){
   const avgDur = durations.length? Math.round(durations.reduce((a,b)=>a+b,0)/durations.length) : 0;
   const consistency = perWeekAverage(weightLog);
   const tmConsistency = perWeekAverage(tmSessions);
-  const wk = computeWeeklyVolume(routineIds);
+  const wk = computeWeeklyVolume(logRoutineIds);
   const durTrend = weightLog.map(weightDurMin).filter(m=>m>0).slice(-10);
   const weightCov = computeWeightRoutineCoverage(routineIds);
   const tmGoal = computeTreadmillGoal(routineIds);
-  const tmLogs = getTreadmillLogs(routineIds);
+  const tmLogs = getTreadmillLogs(logRoutineIds);
   const tmTotalMin = tmLogs.reduce((a,t)=>a+(parseFloat(t.duration)||0),0);
   const tmAvgSpeed = tmLogs.length ? (tmLogs.reduce((a,t)=>a+(parseFloat(t.speed)||0),0)/tmLogs.length).toFixed(1) : '-';
   const tmAvgIncline = tmLogs.length ? (tmLogs.reduce((a,t)=>a+(parseFloat(t.incline)||0),0)/tmLogs.length).toFixed(1) : '-';
-  const tmWeekly = computeTreadmillWeekly(routineIds, tmChartMetric);
+  const tmWeekly = computeTreadmillWeekly(logRoutineIds, tmChartMetric);
   const tmMetricLabel = tmChartMetric==='duration' ? 'Duration (min), weekly total' : tmChartMetric==='speed' ? 'Avg Speed (km/h), weekly' : 'Avg Incline (%), weekly';
 
   const streak = computeWorkoutStreak();
