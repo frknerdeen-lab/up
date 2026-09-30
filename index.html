@@ -2649,9 +2649,9 @@ function navyBodyFat(sex, heightCm, waist, neck, hips){
 }
 // Activity comes from the weekly workout plan (what you do in a full week), not
 // from the log, so a new or half-finished week doesn't understate it.
-// Desk-job baseline 1.2; each weekly weight-training day adds 0.0875 (4 days = 1.55,
-// the classic "moderate"); each weekly treadmill day adds a smaller 0.015
-// (low-intensity cardio), capped at 1.9.
+// Desk-job baseline 1.2; each weekly weight-training day in the plan adds 0.0875
+// (4 days = 1.55, the classic "moderate"), capped at 1.9. Treadmill / walking days
+// are deliberately not counted.
 function autoActivity(){
   const block = state.weekBlocks.find(b=>b.id===statsBlockId) || state.weekBlocks[0];
   let lifts = 0, runs = 0;
@@ -2662,7 +2662,7 @@ function autoActivity(){
     if(ex.some(x=>x.type!=='treadmill' && !isWarmupExercise(x.name))) lifts++;
     if(ex.some(x=>x.type==='treadmill')) runs++;
   });
-  return { factor: Math.min(1.9, 1.2 + 0.0875*lifts + 0.015*runs), lifts, runs };
+  return { factor: Math.min(1.9, 1.2 + 0.0875*lifts), lifts, runs };
 }
 let calPage = 1; // 0 lose, 1 maintain, 2 gain
 function renderBmiBox(){
