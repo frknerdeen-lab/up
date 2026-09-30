@@ -1843,14 +1843,16 @@ function getTreadmillLogs(routineIds){
   return logs;
 }
 let tmChartMetric = 'duration'; // 'duration' | 'speed' | 'incline'
-function computeTreadmillWeekly(routineIds, metric, weeks){
-  weeks = weeks||8;
+// group: 'week' = one bar per week (last 8), 'day' = one bar per running day (last 14)
+function computeTreadmillWeekly(routineIds, metric, weeks, group){
+  group = group||'week';
+  weeks = weeks || (group==='day' ? 14 : 8);
   const map = {};
   state.workoutLog.forEach(e=>{
     if(!routineIds.includes(e.routineId)) return;
     e.exercises.forEach(ex=>{
       if(ex.type!=='treadmill' || !ex.treadmill) return;
-      const wk = isoWeekKey(e.date);
+      const wk = group==='day' ? e.date : isoWeekKey(e.date);
       const val = parseFloat(ex.treadmill[metric]) || 0;
       if(!map[wk]) map[wk] = {sum:0, count:0};
       map[wk].sum += val; map[wk].count++;
@@ -1864,6 +1866,8 @@ function computeTreadmillWeekly(routineIds, metric, weeks){
   });
   return { labels: keys, values };
 }
+let tmChartGroup = 'week'; // 'day' | 'week'
+function setTmChartGroup(g){ tmChartGroup = g; renderStats(); }
 function setTmChartMetric(metric){
   tmChartMetric = metric;
   renderStats();
@@ -2397,8 +2401,9 @@ function renderStats(){
   const tmTotalMin = tmLogs.reduce((a,t)=>a+(parseFloat(t.duration)||0),0);
   const tmAvgSpeed = tmLogs.length ? (tmLogs.reduce((a,t)=>a+(parseFloat(t.speed)||0),0)/tmLogs.length).toFixed(1) : '-';
   const tmAvgIncline = tmLogs.length ? (tmLogs.reduce((a,t)=>a+(parseFloat(t.incline)||0),0)/tmLogs.length).toFixed(1) : '-';
-  const tmWeekly = computeTreadmillWeekly(logRoutineIds, tmChartMetric);
-  const tmMetricLabel = tmChartMetric==='duration' ? 'Duration (min), weekly total' : tmChartMetric==='speed' ? 'Avg Speed (km/h), weekly' : 'Avg Incline (%), weekly';
+  const tmWeekly = computeTreadmillWeekly(logRoutineIds, tmChartMetric, null, tmChartGroup);
+  const tmPer = tmChartGroup==='day' ? 'daily' : 'weekly';
+  const tmMetricLabel = tmChartMetric==='duration' ? `Duration (min), ${tmPer} total` : tmChartMetric==='speed' ? `Avg Speed (km/h), ${tmPer}` : `Avg Incline (%), ${tmPer}`;
 
   const streak = computeWorkoutStreak();
   const streakHtml = renderStreakHero(streak);
@@ -2431,7 +2436,13 @@ function renderStats(){
         <div class="stat-card tm-metric-card ${tmChartMetric==='speed'?'active':''}" style="padding:10px;cursor:pointer" onclick="setTmChartMetric('speed')"><div class="stat-card-val" style="font-size:17px">${tmAvgSpeed}</div><div class="stat-card-label">Avg km/h</div></div>
         <div class="stat-card tm-metric-card ${tmChartMetric==='incline'?'active':''}" style="padding:10px;cursor:pointer" onclick="setTmChartMetric('incline')"><div class="stat-card-val" style="font-size:17px">${tmAvgIncline}%</div><div class="stat-card-label">Avg Incline</div></div>
       </div>
-      <div class="muted" style="font-size:11px;margin-bottom:4px">${tmMetricLabel}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="muted" style="font-size:11px">${tmMetricLabel}</div>
+        <div class="mm-seg mm-seg-sm">
+          <button class="${tmChartGroup==='day'?'on':''}" onclick="setTmChartGroup('day')">Daily</button>
+          <button class="${tmChartGroup==='week'?'on':''}" onclick="setTmChartGroup('week')">Weekly</button>
+        </div>
+      </div>
       ${svgBarChart(tmWeekly.values)}
       <div class="chart-labels"><span>${tmWeekly.labels[0]||''}</span><span>${tmWeekly.labels[tmWeekly.labels.length-1]||''}</span></div>
     </div>
