@@ -170,6 +170,7 @@ button{font-family:inherit;cursor:pointer}
 .trow.bw-row{grid-template-columns:34px minmax(0,1fr) 60px 34px 26px}
 .kg-toggle{display:flex;align-items:center;justify-content:center;background:none;border:none;padding:4px 8px;flex-shrink:0;opacity:.4}
 .kg-toggle.on{opacity:1}
+.ic-sec{display:inline-block;width:16px;height:16px;vertical-align:-3px;background-color:#fff;-webkit-mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272.4%27%20stroke-linecap%3D%27round%27%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2713.5%27%20r%3D%278%27/%3E%3Cpath%20d%3D%27M12%2013.5V9.5M9.5%202.5h5M19%206l-1.5%201.5%27/%3E%3C/svg%3E") no-repeat center/contain;mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272.4%27%20stroke-linecap%3D%27round%27%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2713.5%27%20r%3D%278%27/%3E%3Cpath%20d%3D%27M12%2013.5V9.5M9.5%202.5h5M19%206l-1.5%201.5%27/%3E%3C/svg%3E") no-repeat center/contain}
 .thead{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.3px}
 .setnum{background:var(--card2);border-radius:8px;text-align:center;padding:8px 0;font-weight:700}
 .prev{color:var(--muted);font-size:13px;text-align:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1463,7 +1464,7 @@ function toggleDone(exId, idx){
 function updateStats(){
   const r = activeRoutine();
   let vol = 0, sets = 0;
-  (r ? r.exercises : []).forEach(ex => { if(ex.type==='treadmill') return; ex.sets.forEach(s => { if(s.done){ vol += (parseFloat(s.kg)||0)*(parseFloat(s.reps)||0); sets++; } }); });
+  (r ? r.exercises : []).forEach(ex => { if(ex.type==='treadmill') return; ex.sets.forEach(s => { if(s.done){ if(!ex.timed) vol += (parseFloat(s.kg)||0)*(parseFloat(s.reps)||0); sets++; } }); });
   document.getElementById('volume').textContent = vol.toLocaleString('en-US') + ' kg';
   document.getElementById('setCount').textContent = sets;
 }
@@ -1529,6 +1530,7 @@ function exerciseInner(ex, moveHtml){
       <input class="ex-name" value="${ex.name}" onclick="this.blur();openEditExercise('${ex.id}')" readonly>
       ${moveHtml}
       <button class="kg-toggle ${ex.bodyweight?'':'on'}" onclick="toggleBodyweight('${ex.id}')" title="Toggle weight tracking"><span class="ic-weight"></span></button>
+      <button class="kg-toggle ${ex.timed?'on':''}" onclick="toggleTimed('${ex.id}')" title="Reps / seconds"><span class="ic-sec"></span></button>
       <button class="ex-menu-btn" onclick="deleteExercise('${ex.id}')">${ICONS.close}</button>
     </div>
     <div style="display:flex;align-items:center;gap:4px;margin-top:6px">
@@ -1539,8 +1541,10 @@ function exerciseInner(ex, moveHtml){
 
   const prevArr = getPrevSets(ex.name);
   const bw = !!ex.bodyweight;
+  const timed = !!ex.timed; // reps column holds seconds for timed moves (plank, wall sit...)
+  const unit = timed ? 's' : '';
   const rows = ex.sets.map((s,i) => {
-    const prev = prevArr[i] ? (bw ? `x ${prevArr[i].reps}` : `${prevArr[i].kg}kg x ${prevArr[i].reps}`) : '-';
+    const prev = prevArr[i] ? (bw ? `x ${prevArr[i].reps}${unit}` : `${prevArr[i].kg}kg x ${prevArr[i].reps}${unit}`) : '-';
     const kgInput = bw ? '' : `<input type="number" placeholder="0" value="${s.kg}" onchange="updateSet('${ex.id}',${i},'kg',this.value)">`;
     const canCheck = parseFloat(s.reps) > 0 && (bw || parseFloat(s.kg) > 0);
     return `<div class="trow ${bw?'bw-row':''} ${s.done?'done':''}">
@@ -1554,10 +1558,15 @@ function exerciseInner(ex, moveHtml){
   const kgHeader = bw ? '' : '<div style="text-align:center">KG</div>';
   return `${head}
     <div class="table">
-      <div class="trow ${bw?'bw-row':''} thead"><div>SET</div><div style="text-align:center">PREVIOUS</div>${kgHeader}<div style="text-align:center">REPS</div><div></div><div></div></div>
+      <div class="trow ${bw?'bw-row':''} thead"><div>SET</div><div style="text-align:center">PREVIOUS</div>${kgHeader}<div style="text-align:center">${timed?'SEC':'REPS'}</div><div></div><div></div></div>
       ${rows}
     </div>
     <button class="add-set" onclick="addSet('${ex.id}')"><span class="ic-plus"></span>Add Set</button>`;
+}
+function toggleTimed(exId){
+  const ex = activeRoutine().exercises.find(x=>x.id===exId);
+  ex.timed = !ex.timed;
+  save(); render();
 }
 function toggleBodyweight(exId){
   const ex = activeRoutine().exercises.find(x=>x.id===exId);
@@ -1662,7 +1671,7 @@ function logToday(){
     return ex.sets.some(s=>s.done);
   }).map(ex=>{
     if(ex.type==='treadmill') return {name:ex.name, type:'treadmill', notes:ex.notes||'', treadmill:{speed:ex.treadmill.speed||0, incline:ex.treadmill.incline||0, duration:ex.treadmill.duration||0}, sets:[]};
-    return {name:ex.name, notes: ex.notes||'', sets: ex.sets.filter(s=>s.done).map(s=>({kg:s.kg||0, reps:s.reps||0}))};
+    return {name:ex.name, notes: ex.notes||'', ...(ex.timed?{timed:true}:{}), sets: ex.sets.filter(s=>s.done).map(s=>({kg:s.kg||0, reps:s.reps||0}))};
   });
   if(entryExercises.length===0) return false;
   const duration = Math.round(getElapsedMs()/1000);
@@ -1705,7 +1714,8 @@ function openHistory(){
     const sessions = state.workoutLog.filter(e=>e.routineId===r.id && e.exercises.some(x=>x.name===name)).sort((a,b)=>a.date.localeCompare(b.date));
     const weekCount = sessions.filter(e=> (now - new Date(e.date).getTime()) <= 7*24*3600*1000).length;
     const last5 = sessions.slice(-5).reverse().map(e=>{
-      const sets = e.exercises.find(x=>x.name===name).sets;
+      const lx = e.exercises.find(x=>x.name===name), sets = lx.sets;
+      if(lx.timed) return `<div class="hist-row"><span>${e.date}</span><span>${sets.map(s=>(parseFloat(s.kg)>0?s.kg+'kg x ':'')+s.reps+'s').join(', ')}</span><span></span></div>`;
       const vol = sets.reduce((a,s)=>a+(parseFloat(s.kg)||0)*(parseFloat(s.reps)||0),0);
       return `<div class="hist-row"><span>${e.date}</span><span>${sets.map(s=>s.kg+'kg x '+s.reps).join(', ')}</span><span>${vol}kg</span></div>`;
     }).join('');
@@ -1874,7 +1884,7 @@ function setTmChartMetric(metric){
 }
 function computeWeeklyVolume(routineIds, weeks){
   weeks = weeks||8; const map={};
-  state.workoutLog.forEach(e=>{ if(!routineIds.includes(e.routineId)) return; const wk=isoWeekKey(e.date); const vol=e.exercises.reduce((a,ex)=>a+ex.sets.reduce((b,s)=>b+(parseFloat(s.kg)||0)*(parseFloat(s.reps)||0),0),0); map[wk]=(map[wk]||0)+vol; });
+  state.workoutLog.forEach(e=>{ if(!routineIds.includes(e.routineId)) return; const wk=isoWeekKey(e.date); const vol=e.exercises.reduce((a,ex)=>ex.timed?a:a+ex.sets.reduce((b,s)=>b+(parseFloat(s.kg)||0)*(parseFloat(s.reps)||0),0),0); map[wk]=(map[wk]||0)+vol; });
   const keys = Object.keys(map).sort().slice(-weeks);
   return { labels: keys, values: keys.map(k=>Math.round(map[k])) };
 }
@@ -2375,9 +2385,10 @@ function renderStats(){
 
   const logRoutineIds = routineIds.concat(orphanRoutineIds()); // plan days + days that were since removed from every plan
   const filteredLog = state.workoutLog.filter(e=>logRoutineIds.includes(e.routineId));
-  const totalVolume = filteredLog.reduce((a,e)=>a+e.exercises.reduce((b,ex)=>b+ex.sets.reduce((c,s)=>c+(parseFloat(s.kg)||0)*(parseFloat(s.reps)||0),0),0),0);
+  // Timed moves (seconds instead of reps) don't count toward volume or reps.
+  const totalVolume = filteredLog.reduce((a,e)=>a+e.exercises.reduce((b,ex)=>ex.timed?b:b+ex.sets.reduce((c,s)=>c+(parseFloat(s.kg)||0)*(parseFloat(s.reps)||0),0),0),0);
   const totalSets = filteredLog.reduce((a,e)=>a+e.exercises.reduce((b,ex)=>b+ex.sets.length,0),0);
-  const totalReps = filteredLog.reduce((a,e)=>a+e.exercises.reduce((b,ex)=>b+ex.sets.reduce((c,s)=>c+(parseFloat(s.reps)||0),0),0),0);
+  const totalReps = filteredLog.reduce((a,e)=>a+e.exercises.reduce((b,ex)=>ex.timed?b:b+ex.sets.reduce((c,s)=>c+(parseFloat(s.reps)||0),0),0),0);
   // Weight sessions and treadmill sessions are counted separately. A session's
   // duration excludes treadmill time (entered by hand in the treadmill card),
   // and treadmill-only sessions don't count toward workout duration at all.
@@ -2544,7 +2555,7 @@ function showDay(dateStr){
           ${ex.notes ? `<div class="log-ex-note">${ICONS.note}${esc(ex.notes)}</div>` : ''}
           <div class="log-ex-sets">${ex.type==='treadmill'
             ? `${(ex.treadmill&&ex.treadmill.speed)||'-'} km/h · ${(ex.treadmill&&ex.treadmill.incline)||0}% incline · ${(ex.treadmill&&ex.treadmill.duration)||'-'} min`
-            : ex.sets.map((s,i)=>`<div>Set ${i+1} — ${s.kg}kg, ${s.reps} reps</div>`).join('')}</div>
+            : ex.sets.map((s,i)=>`<div>Set ${i+1} — ${ex.timed ? (parseFloat(s.kg)>0?s.kg+'kg, ':'')+s.reps+' sec' : s.kg+'kg, '+s.reps+' reps'}</div>`).join('')}</div>
         </div>`).join('')}
     </div>`).join('') || '<div class="empty">No entries.</div>';
   document.getElementById('dayDetailContent').innerHTML = logsHtml;
