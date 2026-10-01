@@ -289,20 +289,15 @@ button{font-family:inherit;cursor:pointer}
 .bc-zero{width:min(16px,56%);height:2px;border-radius:2px;background:rgba(255,255,255,.14)}
 .bc-col.sel>div::after{content:attr(data-v);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);white-space:nowrap;font-size:11px;font-weight:700;color:var(--text);background:rgba(20,20,22,.92);border:1px solid rgba(255,255,255,.12);padding:3px 7px;border-radius:7px;pointer-events:none;z-index:2}
 .bc-bar,.bc-zero{position:relative}.bc-col:first-child>div::after{left:0!important;transform:none!important}.bc-col:last-child>div::after{left:auto!important;right:0;transform:none!important}
-.cardio-card .stat-section-head{margin-bottom:0;align-items:flex-end}
+.cardio-card{position:relative;--cardio-line:#ef2b3f}
+.cardio-card .stat-section-head{margin-bottom:0;align-items:flex-end;position:relative;z-index:1}
 .cardio-card #stepsSync{padding-bottom:9px}
-.cardio-tabs{display:flex;gap:2px;position:relative;z-index:1}
-.cardio-tabs button{background:none;border:1px solid transparent;border-bottom:0;border-radius:12px 12px 0 0;padding:9px 16px 10px;margin-bottom:-1px;font:inherit;font-size:15px;font-weight:700;color:var(--muted);cursor:pointer;transition:color .15s}
+.cardio-tabs{display:flex;gap:2px}
+.cardio-tabs button{background:none;border:0;border-radius:12px 12px 0 0;padding:9px 16px 10px;font:inherit;font-size:15px;font-weight:700;color:var(--muted);cursor:pointer;transition:color .15s}
 .cardio-tabs button:hover{color:var(--text)}
-.cardio-tabs button.on{color:var(--text);border-color:var(--cardio-line);background:linear-gradient(180deg,rgba(239,43,63,.10),rgba(239,43,63,0))}
-.cardio-card{--cardio-line:rgba(239,43,63,.75)}
-.cardio-body{position:relative;padding:16px 14px 12px;border:1px solid var(--cardio-line);border-top:0;border-radius:0 14px 14px 14px}
-.cardio-body.not-first{border-top-left-radius:14px}
-.cardio-body::before{content:'';position:absolute;top:0;left:-1px;right:-1px;height:14px;pointer-events:none;
-  border-top:1px solid var(--cardio-line);border-radius:inherit;border-bottom-left-radius:0;border-bottom-right-radius:0;
-  -webkit-mask:linear-gradient(90deg,#000 0 var(--gap-a,0px),transparent var(--gap-a,0px) var(--gap-b,0px),#000 var(--gap-b,0px));
-          mask:linear-gradient(90deg,#000 0 var(--gap-a,0px),transparent var(--gap-a,0px) var(--gap-b,0px),#000 var(--gap-b,0px));
-  border-left:1px solid var(--cardio-line);border-right:1px solid var(--cardio-line)}
+.cardio-tabs button.on{color:var(--text);background:linear-gradient(180deg,rgba(239,43,63,.10),rgba(239,43,63,0))}
+.cardio-body{position:relative;z-index:1;padding:16px 14px 12px}
+.cardio-outline{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:0}
 .chart-labels{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:4px}
 .tm-swipe{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;-webkit-overflow-scrolling:touch}
 .tm-swipe-page{flex:0 0 100%;scroll-snap-align:start;min-width:0}
@@ -1990,15 +1985,30 @@ function setCardioTab(t, btn){
   layoutCardioTabs();
 }
 function layoutCardioTabs(){
+  // One continuous SVG outline around the active tab + body (no seams where
+  // the tab meets the body), fading out smoothly toward the bottom.
   document.querySelectorAll('.cardio-card').forEach(card=>{
     const body = card.querySelector('.cardio-body'), on = card.querySelector('.cardio-tabs button.on');
     if(!body || !on) return;
-    const br = body.getBoundingClientRect(), tr = on.getBoundingClientRect();
+    const cr = card.getBoundingClientRect(), br = body.getBoundingClientRect(), tr = on.getBoundingClientRect();
     if(!br.width) return;
-    const a = tr.left - br.left + 1, b = tr.right - br.left + 1; // +1: the ::before starts at left:-1px
-    body.style.setProperty('--gap-a', Math.max(0,a)+'px');
-    body.style.setProperty('--gap-b', b+'px');
-    body.classList.toggle('not-first', a > 2);
+    const h = .5, r = 12, R = 14;
+    const x0 = br.left-cr.left+h, x1 = br.right-cr.left-h, yT = br.top-cr.top+h, yB = br.bottom-cr.top;
+    const tL = tr.left-cr.left+h, tR = tr.right-cr.left-h, tT = tr.top-cr.top+h;
+    const first = tL - x0 < 2;
+    let d = `M${x0},${yB}`;
+    if(first){
+      d += ` L${x0},${tT+r} A${r},${r} 0 0 1 ${x0+r},${tT}`;
+    } else {
+      d += ` L${x0},${yT+R} A${R},${R} 0 0 1 ${x0+R},${yT} L${tL-6},${yT} A6,6 0 0 0 ${tL},${yT-6} L${tL},${tT+r} A${r},${r} 0 0 1 ${tL+r},${tT}`;
+    }
+    d += ` L${tR-r},${tT} A${r},${r} 0 0 1 ${tR},${tT+r} L${tR},${yT-6} A6,6 0 0 0 ${tR+6},${yT}`;
+    d += ` L${x1-R},${yT} A${R},${R} 0 0 1 ${x1},${yT+R} L${x1},${yB}`;
+    let svg = card.querySelector('.cardio-outline');
+    if(!svg){ card.insertAdjacentHTML('afterbegin', '<svg class="cardio-outline"><defs><linearGradient id="cardioFade" gradientUnits="userSpaceOnUse" x1="0" x2="0"><stop offset="0" stop-color="var(--cardio-line)" stop-opacity=".9"/><stop offset=".3" stop-color="var(--cardio-line)" stop-opacity=".6"/><stop offset="1" stop-color="var(--cardio-line)" stop-opacity="0"/></linearGradient></defs><path fill="none" stroke="url(#cardioFade)" stroke-width="1"/></svg>'); svg = card.querySelector('.cardio-outline'); }
+    svg.setAttribute('width', cr.width); svg.setAttribute('height', cr.height);
+    const g = svg.querySelector('linearGradient'); g.setAttribute('y1', tT); g.setAttribute('y2', yB - 6);
+    svg.querySelector('path').setAttribute('d', d);
   });
 }
 window.addEventListener('resize', layoutCardioTabs);
