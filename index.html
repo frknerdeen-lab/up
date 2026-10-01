@@ -995,6 +995,7 @@ async function pullRemote(){
     }
   }catch(e){ setSyncStatus('err', e.message); }
 }
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && document.getElementById('stepsBlock')) fetchHealth(); });
 function uid(){ return 'x'+Date.now()+Math.random().toString(36).slice(2,7); }
 function todayStr(){ const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function activeRoutine(){ return state.routines.find(r=>r.id===activeRoutineIdRuntime); }
@@ -1923,6 +1924,73 @@ function computeTreadmillWeekly(routineIds, metric, weeks, group){
   });
   return { labels: keys, values };
 }
+/* ---- STEPS (Samsung Health → Health Connect → HC Webhook → Cloud Function) ----
+   Read-only here: the Cloud Function writes users/{uid}/health/steps/{YYYY-MM-DD}.
+   Kept outside `state` so app sync never overwrites it. */
+let healthData = (()=>{ try{ return JSON.parse(localStorage.getItem('upHealth')||'null'); }catch(e){ return null; } })();
+let healthFetchedAt = 0;
+let stepsChartGroup = 'day'; // 'day' | 'week'
+async function fetchHealth(force){
+  if(!currentUser) return;
+  if(!force && Date.now()-healthFetchedAt < 60000) return;
+  healthFetchedAt = Date.now();
+  try{
+    const res = await fetch(await authedUrl(`users/${currentUser.uid}/health`));
+    if(!res.ok) return;
+    healthData = await res.json();
+    try{ localStorage.setItem('upHealth', JSON.stringify(healthData)); }catch(e){}
+    const el = document.getElementById('stepsBlock');
+    if(el) el.innerHTML = renderStepsBlock();
+  }catch(e){ console.error('health fetch failed', e); }
+}
+function setStepsChartGroup(g){ stepsChartGroup = g; const el=document.getElementById('stepsBlock'); if(el) el.innerHTML = renderStepsBlock(); }
+function dateKeyOffset(n){ const d=new Date(); d.setDate(d.getDate()-n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function timeAgo(ms){
+  const m = Math.round((Date.now()-ms)/60000);
+  if(m < 1) return 'just now'; if(m < 60) return m+' min ago';
+  const h = Math.round(m/60); if(h < 24) return h+' h ago';
+  return Math.round(h/24)+' d ago';
+}
+function renderStepsBlock(){
+  const steps = (healthData && healthData.steps) || {};
+  const val = k => steps[k] && Number.isFinite(steps[k].count) ? steps[k].count : null;
+  const fmt = n => n==null ? '-' : Math.round(n).toLocaleString('en-US');
+  const today = val(dateKeyOffset(0));
+  const last7 = [1,2,3,4,5,6,7].map(dateKeyOffset).map(val).filter(v=>v!=null); // full days only
+  const avg7 = last7.length ? last7.reduce((a,b)=>a+b,0)/last7.length : null;
+  const all = Object.keys(steps).map(val).filter(v=>v!=null);
+  const best = all.length ? Math.max(...all) : null;
+  let labels, values;
+  if(stepsChartGroup==='day'){
+    const keys = Array.from({length:14},(_,i)=>dateKeyOffset(13-i));
+    labels = keys; values = keys.map(k=>val(k)||0);
+  } else {
+    const map = {};
+    Object.keys(steps).forEach(k=>{ const v=val(k); if(v==null) return; const w=isoWeekKey(k); (map[w]=map[w]||[]).push(v); });
+    labels = Object.keys(map).sort().slice(-8);
+    values = labels.map(w=>Math.round(map[w].reduce((a,b)=>a+b,0)/map[w].length));
+  }
+  const sync = healthData && healthData.lastSync && healthData.lastSync.at;
+  const hasAny = all.length > 0;
+  return `
+    <div class="stat-section-head"><h3>Steps</h3><span class="muted" style="font-size:11px">${sync?'Synced '+timeAgo(sync):''}</span></div>
+    ${hasAny ? `
+    <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
+      <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${fmt(today)}</div><div class="stat-card-label">Today</div></div>
+      <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${fmt(avg7)}</div><div class="stat-card-label">7-Day Avg</div></div>
+      <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${fmt(best)}</div><div class="stat-card-label">Best Day</div></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
+      <div class="muted" style="font-size:11px">${stepsChartGroup==='day'?'Steps per day, last 14 days':'Avg steps per day, weekly'}</div>
+      <div class="mm-seg mm-seg-sm">
+        <button class="${stepsChartGroup==='day'?'on':''}" onclick="setStepsChartGroup('day')">Daily</button>
+        <button class="${stepsChartGroup==='week'?'on':''}" onclick="setStepsChartGroup('week')">Weekly</button>
+      </div>
+    </div>
+    ${svgBarChart(values)}
+    <div class="chart-labels"><span>${labels[0]||''}</span><span>${labels[labels.length-1]||''}</span></div>`
+    : `<div class="muted" style="font-size:12px;padding:6px 0">No step data yet. It arrives from your phone via Health Connect.</div>`}`;
+}
 let tmChartGroup = 'week'; // 'day' | 'week'
 function setTmChartGroup(g){ tmChartGroup = g; renderStats(); }
 function setTmChartMetric(metric){
@@ -2504,6 +2572,7 @@ function renderStats(){
       ${svgBarChart(tmWeekly.values)}
       <div class="chart-labels"><span>${tmWeekly.labels[0]||''}</span><span>${tmWeekly.labels[tmWeekly.labels.length-1]||''}</span></div>
     </div>
+    <div id="stepsBlock" class="stat-section">${renderStepsBlock()}</div>
     <div class="stat-grid">
       <div class="stat-card"><div class="stat-card-val">${weightLog.length}</div><div class="stat-card-label">Total Workouts</div></div>
       <div class="stat-card"><div class="stat-card-val">${tmSessions.length}</div><div class="stat-card-label">Total Treadmill</div></div>
@@ -2545,6 +2614,7 @@ function renderStats(){
   renderMeasureTypeSelect();
   renderMeasureChart();
   sizeStreakHero();
+  fetchHealth();
 }
 function sizeStreakHero(){
   // Make the streak hero fill exactly the visible area between the top bar and
@@ -2686,7 +2756,9 @@ function renderBmiBox(){
   }
   // Body fat
   const bf = (hcm>0 && sex) ? navyBodyFat(sex, hcm, waist, neck, hips) : NaN;
-  const bfT = (bf>0 && bf<70) ? tile('Body fat', bf.toFixed(1)+'<small>%</small>', 'Navy method', false)
+  // FFMI = fat-free mass / height² (m), normalized to 1.8 m: + 6.1 × (1.8 − height).
+  const ffmi = (bf>0 && bf<70 && w>0) ? (w*(1-bf/100))/Math.pow(hcm/100,2) + 6.1*(1.8 - hcm/100) : NaN;
+  const bfT = (bf>0 && bf<70) ? tile('Body fat', bf.toFixed(1)+'<small>%</small>', ffmi>0 ? 'FFMI '+ffmi.toFixed(1) : 'Navy method', false)
     : tile('Body fat', '–', sex==='f' ? 'needs waist, neck, hips' : 'needs waist & neck', false);
   // Calories (swipe: lose / maintain / gain)
   let calT = tile('Calories','–','',false), macroT = tile('Macros','–','',false), protein = '';
