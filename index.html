@@ -298,6 +298,13 @@ button{font-family:inherit;cursor:pointer}
 .cardio-tabs button.on{color:var(--text);background:linear-gradient(180deg,rgba(239,43,63,.10),rgba(239,43,63,0))}
 .cardio-body{position:relative;z-index:1;padding:16px 14px 12px}
 .cardio-outline{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:0}
+.step-goal{margin:-4px 0 16px}
+.step-goal-row{display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.step-goal-in{display:flex;align-items:center;gap:6px}
+.step-goal-in input{width:84px;margin:0;padding:6px 8px;text-align:right;font-size:13px;font-weight:700;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:var(--text)}
+.step-goal-bar{height:6px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:10px}
+.step-goal-bar div{height:100%;border-radius:6px;background:linear-gradient(90deg,#c81e33,#ff5a69)}
+.step-goal-note{font-size:11px;margin-top:6px}
 .chart-labels{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:4px}
 .tm-swipe{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;-webkit-overflow-scrolling:touch}
 .tm-swipe-page{flex:0 0 100%;scroll-snap-align:start;min-width:0}
@@ -357,6 +364,8 @@ button{font-family:inherit;cursor:pointer}
 .body-protein b{color:var(--text)}
 .body-hint{font-size:11px;color:var(--muted);margin-top:8px;text-align:center}
 .body-setup{display:block;width:100%;margin-top:8px;background:none;border:1px dashed var(--border);color:var(--muted);font-size:12px;padding:8px;border-radius:10px;cursor:pointer}
+#profileModal .modal{max-height:calc(100dvh - 40px);overflow-y:auto}
+.pf-sec-title{margin:22px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);font-weight:700}
 .profile-form{display:flex;flex-direction:column;gap:14px}
 .profile-form label{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;font-weight:600;color:var(--text)}
 .profile-form .bi{display:flex;align-items:center;gap:6px}
@@ -656,6 +665,9 @@ button{font-family:inherit;cursor:pointer}
     <h3>Profile</h3>
   </div>
   <div id="profileForm" class="profile-form"></div>
+  <div class="pf-sec-title">Measurements</div>
+  <table class="measure-table" id="measureTable"></table>
+  <button class="save" style="margin-top:10px;width:100%" onclick="saveAllMeasurements(event)"><span class="ic-save"></span>Save</button>
 </div></div>
 
 <!-- Hatırlatıcılar -->
@@ -744,6 +756,7 @@ function normalizeState(s){
   if(s.heightCm!=null && !(parseFloat(s.heightCm)>0)) s.heightCm = null;
   if(s.age!=null && !(parseInt(s.age,10)>0)) s.age = null;
   if(s.sex!=null && s.sex!=='m' && s.sex!=='f') s.sex = null;
+  s.stepGoal = (parseInt(s.stepGoal,10)>0) ? Math.min(100000, parseInt(s.stepGoal,10)) : null;
   s.measurements.forEach(m=>{ if(MEASURE_TYPE_MIGRATION[m.type]) m.type = MEASURE_TYPE_MIGRATION[m.type]; });
   if(!Array.isArray(s.dailyHabits)) s.dailyHabits = [];
   if(!s.dailyLog || typeof s.dailyLog !== 'object' || Array.isArray(s.dailyLog)) s.dailyLog = {};
@@ -1021,11 +1034,11 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden && docume
 function uid(){ return 'x'+Date.now()+Math.random().toString(36).slice(2,7); }
 function todayStr(){ const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function activeRoutine(){ return state.routines.find(r=>r.id===activeRoutineIdRuntime); }
-function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); if(id==='profileModal') renderBmiBox(); }
 function esc(s){ return (s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 document.addEventListener('click', function(e){
   if(e.target.classList && e.target.classList.contains('modal-bg') && e.target.classList.contains('show')){
-    e.target.classList.remove('show');
+    if(e.target.id) closeModal(e.target.id); else e.target.classList.remove('show');
   }
 });
 
@@ -1970,7 +1983,7 @@ async function fetchHealth(force){
     healthData = await res.json();
     try{ localStorage.setItem('upHealth', JSON.stringify(healthData)); }catch(e){}
     const el = document.getElementById('stepsBlock');
-    if(el) el.innerHTML = renderStepsBlock();
+    if(el) refreshStepsViews();
     const sy = document.getElementById('stepsSync'); if(sy) sy.textContent = stepsSyncText();
   }catch(e){ console.error('health fetch failed', e); }
 }
@@ -2012,8 +2025,29 @@ function layoutCardioTabs(){
   });
 }
 window.addEventListener('resize', layoutCardioTabs);
+function setStepGoal(v){
+  const n = parseInt(v,10);
+  state.stepGoal = n>0 ? Math.min(100000, n) : null;
+  save();
+  refreshStepsViews();
+}
+function refreshStepsViews(){
+  const el = document.getElementById('stepsBlock'); if(el) el.innerHTML = renderStepsBlock();
+  const rb = document.getElementById('stepsRingBox'); if(rb) rb.outerHTML = renderStepsRing();
+  requestAnimationFrame(layoutCardioTabs);
+}
+function todaySteps(){ const t = healthData && healthData.steps && healthData.steps[todayStr()]; return t && Number.isFinite(t.count) ? t.count : 0; }
+function renderStepsRing(){
+  const g = state.stepGoal; if(!(g>0)) return '<div id="stepsRingBox" style="display:none"></div>';
+  const t = todaySteps();
+  return `<div id="stepsRingBox" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
+    ${svgRingChart(t/g*100, 92, 9, ['#ff5252','#9c2020'])}
+    <div style="font-size:12px;font-weight:700">Steps Today</div>
+    <div class="muted" style="font-size:10px;margin-top:-6px">${t.toLocaleString('en-US')} / ${g.toLocaleString('en-US')}</div>
+  </div>`;
+}
 function stepsSyncText(){ const at = healthData && healthData.lastSync && healthData.lastSync.at; return at ? 'Synced '+timeAgo(at) : ''; }
-function setStepsChartGroup(g){ stepsChartGroup = g; const el=document.getElementById('stepsBlock'); if(el) el.innerHTML = renderStepsBlock(); }
+function setStepsChartGroup(g){ stepsChartGroup = g; const el=document.getElementById('stepsBlock'); if(el){ el.innerHTML = renderStepsBlock(); layoutCardioTabs(); } }
 function dateKeyOffset(n){ const d=new Date(); d.setDate(d.getDate()-n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function timeAgo(ms){
   const m = Math.round((Date.now()-ms)/60000);
@@ -2049,6 +2083,13 @@ function renderStepsBlock(){
       <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${fmt(avg7)}</div><div class="stat-card-label">7-Day Avg</div></div>
       <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${fmt(best)}</div><div class="stat-card-label">Best Day</div></div>
     </div>
+    ${(()=>{ const g=state.stepGoal, pct=g&&today?Math.min(100,today/g*100):0;
+      if(!g) return `<div class="muted step-goal-note" style="margin:-4px 0 16px">Set a daily step goal in your Profile to get a notification when you reach it.</div>`;
+      return `<div class="step-goal">
+        <div class="step-goal-row"><span class="muted">Daily goal</span><b>${fmt(g)} steps</b></div>
+        <div class="step-goal-bar"><div style="width:${pct.toFixed(1)}%"></div></div>
+        <div class="muted step-goal-note">${today>=g?'Goal reached today 🎉':fmt(Math.max(0,g-(today||0)))+' steps to go'}</div>
+      </div>`; })()}
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
       <div class="muted" style="font-size:11px">${stepsChartGroup==='day'?'Steps per day':'Avg steps per day, weekly'}</div>
       <div class="mm-seg mm-seg-sm">
@@ -2622,6 +2663,7 @@ function renderStats(){
           ${svgRingChart(tmGoal.pct, 92, 9, ['#ff5252','#9c2020'])}
           <div style="font-size:12px;font-weight:700">Treadmill</div>
         </div>
+        ${renderStepsRing()}
       </div>
     </div>
     <div class="stat-section cardio-card">
@@ -2679,8 +2721,6 @@ function renderStats(){
     <div class="stat-section">
       <div class="stat-section-head"><h3>Measurements</h3></div>
       <div id="bmiBox" class="bmi-box"></div>
-      <table class="measure-table" id="measureTable"></table>
-      <button class="save" style="margin-top:10px;width:100%" onclick="saveAllMeasurements(event)"><span class="ic-save"></span>Save</button>
       <div style="margin-top:18px">
         <select id="measureTypeSelect" class="theme-select" onchange="renderMeasureChart()"></select>
         <div id="measureChart" style="margin-top:18px"></div>
@@ -2688,7 +2728,6 @@ function renderStats(){
       </div>
     </div>`;
   renderCalendar();
-  renderMeasureTable();
   renderBmiBox();
   renderMeasureTypeSelect();
   renderMeasureChart();
@@ -2790,7 +2829,9 @@ function renderMeasureTable(){
 // calories (Mifflin-St Jeor × activity). Height / age / sex live in the profile
 // (top-bar icon). Activity is detected from the last 4 weeks of logged training.
 function latestMeasure(type){
-  const inp = document.getElementById(measureId(type));
+  // Unsaved values typed in the Profile modal preview live only while it's open.
+  const open = document.getElementById('profileModal').classList.contains('show');
+  const inp = open ? document.getElementById(measureId(type)) : null;
   const live = inp ? parseFloat(inp.value) : NaN;
   if(!isNaN(live) && live > 0) return live;
   const last = state.measurements.filter(m=>m.type===type).sort((a,b)=>a.date.localeCompare(b.date)).pop();
@@ -2882,7 +2923,9 @@ function openProfile(){
     <label>Sex<span class="mm-seg body-sex">
       <button class="${state.sex==='m'?'on':''}" onclick="setBodyProfile('sex','m');openProfile()">Male</button>
       <button class="${state.sex==='f'?'on':''}" onclick="setBodyProfile('sex','f');openProfile()">Female</button></span></label>
+    <label>Step goal<span class="pf-box"><input type="number" step="500" placeholder="Off" value="${state.stepGoal>0?state.stepGoal:''}" onchange="setStepGoal(this.value)"><span class="measure-unit">steps</span></span></label>
     <div class="body-hint" style="text-align:left">Used for BMI, body fat and calories. Your activity level is worked out from your workout plan.</div>`;
+  renderMeasureTable();
   document.getElementById('profileModal').classList.add('show');
 }
 function setBodyProfile(field, v){
@@ -2900,7 +2943,7 @@ function liveMeasurePreview(type, val){
   const past = state.measurements.filter(m=>m.type===type && m.date!==today).sort((a,b)=>a.date.localeCompare(b.date)).map(e=>({date:e.date, value:e.value}));
   const v = parseFloat(val);
   if(!isNaN(v)) past.push({date:today, value:v});
-  document.getElementById('measureChart').innerHTML = svgMeasureChart(past, unit);
+  const mc = document.getElementById('measureChart'); if(mc) mc.innerHTML = svgMeasureChart(past, unit);
 }
 function svgMeasureChart(entries, unit){
   unit = unit || '';
@@ -2996,7 +3039,8 @@ function saveAllMeasurements(ev){
   if(savedAny) save();
   const btn = (ev && ev.target) || (window.event && window.event.target);
   if(btn){ const orig = btn.innerHTML; btn.textContent = '✓ Saved'; btn.classList.add('saved-flash'); setTimeout(()=>{ btn.innerHTML = orig; btn.classList.remove('saved-flash'); },1500); }
-  renderMeasureTypeSelect(); renderMeasureChart();
+  renderBmiBox();
+  if(document.getElementById('measureTypeSelect')){ renderMeasureTypeSelect(); renderMeasureChart(); }
 }
 function renderMeasureTypeSelect(){
   const sel = document.getElementById('measureTypeSelect');
