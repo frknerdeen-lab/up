@@ -1979,15 +1979,16 @@ function renderStepsBlock(){
   const today = val(dateKeyOffset(0));
   const last7 = [1,2,3,4,5,6,7].map(dateKeyOffset).map(val).filter(v=>v!=null); // full days only
   const avg7 = last7.length ? last7.reduce((a,b)=>a+b,0)/last7.length : null;
-  const all = Object.keys(steps).map(val).filter(v=>v!=null);
+  const all = Object.keys(steps).map(val).filter(v=>v>0);
   const best = all.length ? Math.max(...all) : null;
   let labels, values;
   if(stepsChartGroup==='day'){
-    const keys = Array.from({length:14},(_,i)=>dateKeyOffset(13-i));
-    labels = keys; values = keys.map(k=>val(k)||0);
+    // Only days that actually have steps (no empty 0-bars for days before tracking started).
+    const keys = Object.keys(steps).filter(k=>val(k)>0).sort().slice(-14);
+    labels = keys; values = keys.map(k=>val(k));
   } else {
     const map = {};
-    Object.keys(steps).forEach(k=>{ const v=val(k); if(v==null) return; const w=isoWeekKey(k); (map[w]=map[w]||[]).push(v); });
+    Object.keys(steps).forEach(k=>{ const v=val(k); if(!v) return; const w=isoWeekKey(k); (map[w]=map[w]||[]).push(v); });
     labels = Object.keys(map).sort().slice(-8);
     values = labels.map(w=>Math.round(map[w].reduce((a,b)=>a+b,0)/map[w].length));
   }
@@ -2002,7 +2003,7 @@ function renderStepsBlock(){
       <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${fmt(best)}</div><div class="stat-card-label">Best Day</div></div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
-      <div class="muted" style="font-size:11px">${stepsChartGroup==='day'?'Steps per day, last 14 days':'Avg steps per day, weekly'}</div>
+      <div class="muted" style="font-size:11px">${stepsChartGroup==='day'?'Steps per day':'Avg steps per day, weekly'}</div>
       <div class="mm-seg mm-seg-sm">
         <button class="${stepsChartGroup==='day'?'on':''}" onclick="setStepsChartGroup('day')">Daily</button>
         <button class="${stepsChartGroup==='week'?'on':''}" onclick="setStepsChartGroup('week')">Weekly</button>
