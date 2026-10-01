@@ -289,6 +289,11 @@ button{font-family:inherit;cursor:pointer}
 .bc-zero{width:min(16px,56%);height:2px;border-radius:2px;background:rgba(255,255,255,.14)}
 .bc-col.sel>div::after{content:attr(data-v);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);white-space:nowrap;font-size:11px;font-weight:700;color:var(--text);background:rgba(20,20,22,.92);border:1px solid rgba(255,255,255,.12);padding:3px 7px;border-radius:7px;pointer-events:none;z-index:2}
 .bc-bar,.bc-zero{position:relative}.bc-col:first-child>div::after{left:0!important;transform:none!important}.bc-col:last-child>div::after{left:auto!important;right:0;transform:none!important}
+.cardio-card .stat-section-head{margin-bottom:20px}
+.cardio-tabs{display:flex;gap:16px;align-items:baseline}
+.cardio-tabs button{background:none;border:0;padding:0;font:inherit;font-size:15px;font-weight:700;color:var(--muted);cursor:pointer;position:relative;transition:color .15s}
+.cardio-tabs button.on{color:var(--text)}
+.cardio-tabs button.on::after{content:'';position:absolute;left:0;right:0;bottom:-6px;height:2px;border-radius:2px;background:#ef2b3f}
 .chart-labels{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:4px}
 .tm-swipe{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;-webkit-overflow-scrolling:touch}
 .tm-swipe-page{flex:0 0 100%;scroll-snap-align:start;min-width:0}
@@ -1962,8 +1967,19 @@ async function fetchHealth(force){
     try{ localStorage.setItem('upHealth', JSON.stringify(healthData)); }catch(e){}
     const el = document.getElementById('stepsBlock');
     if(el) el.innerHTML = renderStepsBlock();
+    const sy = document.getElementById('stepsSync'); if(sy) sy.textContent = stepsSyncText();
   }catch(e){ console.error('health fetch failed', e); }
 }
+let cardioTab = 'treadmill'; // 'treadmill' | 'steps'
+function setCardioTab(t, btn){
+  cardioTab = t;
+  const card = btn.closest('.cardio-card');
+  card.querySelectorAll('.cardio-tabs button').forEach(b=>b.classList.toggle('on', b===btn));
+  card.querySelectorAll('.cardio-pane').forEach(p=>p.style.display = p.dataset.pane===t ? '' : 'none');
+  const sy = document.getElementById('stepsSync'); if(sy) sy.style.display = t==='steps' ? '' : 'none';
+  if(t==='steps') fetchHealth();
+}
+function stepsSyncText(){ const at = healthData && healthData.lastSync && healthData.lastSync.at; return at ? 'Synced '+timeAgo(at) : ''; }
 function setStepsChartGroup(g){ stepsChartGroup = g; const el=document.getElementById('stepsBlock'); if(el) el.innerHTML = renderStepsBlock(); }
 function dateKeyOffset(n){ const d=new Date(); d.setDate(d.getDate()-n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function timeAgo(ms){
@@ -1992,10 +2008,8 @@ function renderStepsBlock(){
     labels = Object.keys(map).sort().slice(-8);
     values = labels.map(w=>Math.round(map[w].reduce((a,b)=>a+b,0)/map[w].length));
   }
-  const sync = healthData && healthData.lastSync && healthData.lastSync.at;
   const hasAny = all.length > 0;
   return `
-    <div class="stat-section-head"><h3>Steps</h3><span class="muted" style="font-size:11px">${sync?'Synced '+timeAgo(sync):''}</span></div>
     ${hasAny ? `
     <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
       <div class="stat-card" style="padding:10px"><div class="stat-card-val" style="font-size:17px">${fmt(today)}</div><div class="stat-card-label">Today</div></div>
@@ -2577,8 +2591,15 @@ function renderStats(){
         </div>
       </div>
     </div>
-    <div class="stat-section">
-      <div class="stat-section-head"><h3>Treadmill</h3></div>
+    <div class="stat-section cardio-card">
+      <div class="stat-section-head">
+        <div class="cardio-tabs">
+          <button class="${cardioTab==='treadmill'?'on':''}" onclick="setCardioTab('treadmill',this)">Treadmill</button>
+          <button class="${cardioTab==='steps'?'on':''}" onclick="setCardioTab('steps',this)">Steps</button>
+        </div>
+        <span id="stepsSync" class="muted" style="font-size:11px;${cardioTab==='steps'?'':'display:none'}">${stepsSyncText()}</span>
+      </div>
+      <div class="cardio-pane" data-pane="treadmill" style="${cardioTab==='treadmill'?'':'display:none'}">
       <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
         <div class="stat-card tm-metric-card ${tmChartMetric==='duration'?'active':''}" style="padding:10px;cursor:pointer" onclick="setTmChartMetric('duration')"><div class="stat-card-val" style="font-size:17px">${Math.round(tmTotalMin)}</div><div class="stat-card-label">Total Min</div></div>
         <div class="stat-card tm-metric-card ${tmChartMetric==='speed'?'active':''}" style="padding:10px;cursor:pointer" onclick="setTmChartMetric('speed')"><div class="stat-card-val" style="font-size:17px">${tmAvgSpeed}</div><div class="stat-card-label">Avg km/h</div></div>
@@ -2593,8 +2614,9 @@ function renderStats(){
       </div>
       ${svgBarChart(tmWeekly.values, null, tmWeekly.labels, tmChartMetric==='duration'?'min':tmChartMetric==='speed'?'km/h':'%')}
       <div class="chart-labels"><span>${tmWeekly.labels[0]||''}</span><span>${tmWeekly.labels[tmWeekly.labels.length-1]||''}</span></div>
+      </div>
+      <div id="stepsBlock" class="cardio-pane" data-pane="steps" style="${cardioTab==='steps'?'':'display:none'}">${renderStepsBlock()}</div>
     </div>
-    <div id="stepsBlock" class="stat-section">${renderStepsBlock()}</div>
     <div class="stat-grid">
       <div class="stat-card"><div class="stat-card-val">${weightLog.length}</div><div class="stat-card-label">Total Workouts</div></div>
       <div class="stat-card"><div class="stat-card-val">${tmSessions.length}</div><div class="stat-card-label">Total Treadmill</div></div>
