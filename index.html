@@ -365,6 +365,24 @@ button{font-family:inherit;cursor:pointer}
 .body-hint{font-size:11px;color:var(--muted);margin-top:8px;text-align:center}
 .body-setup{display:block;width:100%;margin-top:8px;background:none;border:1px dashed var(--border);color:var(--muted);font-size:12px;padding:8px;border-radius:10px;cursor:pointer}
 #profileModal .modal{max-height:calc(100dvh - 40px);overflow-y:auto}
+.ws-modal{max-height:calc(100dvh - 40px);overflow-y:auto}
+.ws-head{text-align:center;margin-bottom:14px}
+.ws-kicker{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--accent)}
+.ws-title{font-size:22px;font-weight:800;margin-top:4px}
+.ws-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ws-tile{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.ws-tile b{font-size:22px;font-weight:800;color:var(--text)}.ws-tile b small{font-size:12px;font-weight:600;color:var(--muted)}
+.ws-tile>span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.ws-delta{font-size:11px;font-weight:700;text-transform:none!important;letter-spacing:0!important}.ws-delta.up{color:#4ade80!important}.ws-delta.down{color:var(--muted)!important}
+.ws-sec{margin:16px 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);font-weight:700}
+.ws-bests>div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.ws-bests b em{font-style:normal;color:#4ade80;font-size:11px;margin-left:4px}
+.ws-map{display:grid;grid-template-columns:1fr 1fr;gap:4px;max-width:210px;margin:0 auto}
+.ws-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px}
+.ws-chips span{font-size:12px;background:var(--card2);border:1px solid var(--border);border-radius:20px;padding:4px 10px;color:var(--muted)}.ws-chips b{color:var(--text)}
+.pf-export{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.pf-export button{background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px 8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+.pf-export button span{color:var(--muted);font-weight:500}
 .pf-sec-title{margin:22px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);font-weight:700}
 .profile-form{display:flex;flex-direction:column;gap:14px}
 .profile-form label{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;font-weight:600;color:var(--text)}
@@ -387,7 +405,21 @@ button{font-family:inherit;cursor:pointer}
 .mx-card-title{flex:1;font-size:13px;font-weight:700;color:var(--text);white-space:nowrap}
 .mm-seg-sm button{font-size:11px;padding:5px 8px}
 .mx-card .mx-list{margin-top:10px}
-.mx-card-foot{display:flex;justify-content:flex-end;margin-top:10px}
+.mx-card-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.mx-tsum{font-size:12px;color:var(--muted);margin:10px 6px 4px}.mx-tsum b{color:var(--text);font-size:14px}
+.mx-trow{grid-template-columns:96px 1fr 86px}
+.mx-trow .mx-row-bar{position:relative;overflow:visible;background:rgba(255,255,255,.06)}
+.mx-trow .mx-row-bar div{position:relative;opacity:.55}
+.mx-trow.ok .mx-row-bar div,.mx-trow.high .mx-row-bar div{opacity:1}
+.mx-zone{position:absolute;top:-3px;bottom:-3px;border-radius:3px;background:rgba(255,255,255,.09);border-left:1px solid rgba(255,255,255,.35);border-right:1px solid rgba(255,255,255,.35)}
+.mx-trow .mx-row-val{white-space:nowrap}
+.mx-trow .mx-row-val em{font-style:normal;font-weight:500;color:var(--muted);font-size:11px}
+.mx-trow.low .mx-row-val{color:var(--muted)}
+.mx-row-val i{font-style:normal;margin-right:3px;font-size:11px}.mx-ok{color:#4ade80}.mx-hi{color:#fbbf24}
+.tg-list{display:flex;flex-direction:column}
+.tg-row{display:grid;grid-template-columns:1fr 58px 12px 58px;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);font-size:14px}
+.tg-row em{font-style:normal;color:var(--muted);text-align:center}
+.tg-row input{width:100%;margin:0;box-sizing:border-box;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 6px;font-size:14px;text-align:center;font-family:inherit}
 .mx-links-btn{background:none;border:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:600;padding:7px 12px;border-radius:10px;cursor:pointer}
 .mx-top{display:flex;justify-content:space-between;align-items:flex-start;margin:6px 2px 14px}
 .mx-big{font-family:'UPImpact',Impact,sans-serif;font-size:56px;line-height:.95;color:var(--text)}
@@ -626,6 +658,9 @@ button{font-family:inherit;cursor:pointer}
 
 </div></div>
 
+<!-- Antrenman özeti -->
+<div class="modal-bg" id="summaryModal"><div class="modal ws-modal"><div id="summaryBody"></div></div></div>
+
 <!-- Gün detayı (takvim) -->
 <div class="modal-bg" id="dayDetailModal"><div class="modal hist-modal sticky-header">
   <div class="hist-modal-header">
@@ -650,6 +685,13 @@ button{font-family:inherit;cursor:pointer}
 </div></div>
 
 <!-- Kas eşleştirme -->
+<div class="modal-bg" id="targetEditModal"><div class="modal hist-modal sticky-header">
+  <div class="hist-modal-header">
+    <button class="close-x" onclick="closeModal('targetEditModal')">✕</button>
+    <h3>Weekly Set Targets</h3>
+  </div>
+  <div class="hist-modal-body" id="targetEditBody"></div>
+</div></div>
 <div class="modal-bg" id="muscleEditModal"><div class="modal hist-modal sticky-header">
   <div class="hist-modal-header">
     <button class="close-x" onclick="closeModal('muscleEditModal')">✕</button>
@@ -668,6 +710,14 @@ button{font-family:inherit;cursor:pointer}
   <div class="pf-sec-title">Measurements</div>
   <table class="measure-table" id="measureTable"></table>
   <button class="save" style="margin-top:10px;width:100%" onclick="saveAllMeasurements(event)"><span class="ic-save"></span>Save</button>
+  <div class="pf-sec-title">Export data</div>
+  <div class="pf-export">
+    <button onclick="exportData('workouts')">Workouts<span>.csv</span></button>
+    <button onclick="exportData('measurements')">Measurements<span>.csv</span></button>
+    <button onclick="exportData('steps')">Steps<span>.csv</span></button>
+    <button onclick="exportData('backup')">Full backup<span>.json</span></button>
+  </div>
+  <div class="body-hint" style="text-align:left;margin-top:8px">CSV opens in Excel or Google Sheets. The full backup holds everything in the app.</div>
 </div></div>
 
 <!-- Hatırlatıcılar -->
@@ -756,6 +806,7 @@ function normalizeState(s){
   if(s.heightCm!=null && !(parseFloat(s.heightCm)>0)) s.heightCm = null;
   if(s.age!=null && !(parseInt(s.age,10)>0)) s.age = null;
   if(s.sex!=null && s.sex!=='m' && s.sex!=='f') s.sex = null;
+  if(!s.muscleTargets || typeof s.muscleTargets!=='object' || Array.isArray(s.muscleTargets)) s.muscleTargets = {};
   s.stepGoal = (parseInt(s.stepGoal,10)>0) ? Math.min(100000, parseInt(s.stepGoal,10)) : null;
   s.measurements.forEach(m=>{ if(MEASURE_TYPE_MIGRATION[m.type]) m.type = MEASURE_TYPE_MIGRATION[m.type]; });
   if(!Array.isArray(s.dailyHabits)) s.dailyHabits = [];
@@ -1774,7 +1825,8 @@ function finishWorkout(){
   const r = activeRoutine();
   if(!r || r.exercises.length===0){ backToHome(); return; }
   askConfirm('Finish and save this workout?', ()=>{
-    logToday();
+    const logged = logToday();
+    const sumDate = todayStr(), sumRoutine = r.id;
     r.exercises.forEach(ex=>{
       if(ex.type==='treadmill'){ ex.treadmill = {speed:'',incline:'',duration:'',done:false}; }
       else { ex.sets.forEach(s=>{ s.kg=''; s.reps=''; s.done=false; }); }
@@ -1782,7 +1834,72 @@ function finishWorkout(){
     });
     save();
     backToHome();
+    if(logged) openWorkoutSummary(sumDate, sumRoutine);
   }, 'Finish');
+}
+
+/* ---- Workout summary (shown right after Finish) ---- */
+function entryStats(e){
+  let volume=0, sets=0, reps=0, tmMin=0;
+  (e.exercises||[]).forEach(ex=>{
+    if(ex.type==='treadmill'){ tmMin += parseFloat(ex.treadmill && ex.treadmill.duration)||0; return; }
+    (ex.sets||[]).forEach(st=>{ sets++; if(ex.timed) return; const k=parseFloat(st.kg)||0, n=parseFloat(st.reps)||0; reps+=n; volume+=k*n; });
+  });
+  return { volume, sets, reps, tmMin };
+}
+function workoutSummaryData(dateStr, routineId){
+  const e = state.workoutLog.find(x=>x.date===dateStr && x.routineId===routineId);
+  if(!e) return null;
+  const st = entryStats(e);
+  const prev = state.workoutLog.filter(x=>x.routineId===routineId && x.date<dateStr).sort((a,b)=>a.date.localeCompare(b.date)).pop();
+  const prevVol = prev ? entryStats(prev).volume : 0;
+  // New bests: heaviest weight ever lifted on an exercise (any routine, any earlier day).
+  const bests = [];
+  (e.exercises||[]).forEach(ex=>{
+    if(ex.type==='treadmill' || ex.timed) return;
+    const top = Math.max(0, ...(ex.sets||[]).map(s=>parseFloat(s.kg)||0));
+    if(!(top>0)) return;
+    let before = 0, seen = false;
+    state.workoutLog.forEach(x=>{ if(x.date>=dateStr) return; (x.exercises||[]).forEach(px=>{ if(px.name!==ex.name || px.timed) return; seen = true; (px.sets||[]).forEach(s=>{ before = Math.max(before, parseFloat(s.kg)||0); }); }); });
+    if(seen && top>before) bests.push({ name:ex.name, kg:top, up:Math.round((top-before)*100)/100 });
+  });
+  // Muscles worked in this session (same counting as the map).
+  const load = {};
+  (e.exercises||[]).forEach(ex=>{
+    if(ex.type==='treadmill' || isWarmupExercise(ex.name)) return;
+    const mm = musclesFor(ex.name), n = (ex.sets||[]).length; if(!mm || !n) return;
+    mm.p.forEach(m=>load[m]=(load[m]||0)+n); mm.s.forEach(m=>load[m]=(load[m]||0)+n*0.5);
+  });
+  const muscles = Object.keys(load).filter(m=>m in MUSCLES).sort((a,b)=>load[b]-load[a]);
+  const totalMin = Math.round((e.durationSec||0)/60);
+  return { e, st, prev, prevVol, bests, load, muscles, totalMin };
+}
+function openWorkoutSummary(dateStr, routineId){
+  const d = workoutSummaryData(dateStr, routineId);
+  if(!d) return;
+  const { e, st, prev, prevVol, bests, load, muscles, totalMin } = d;
+  const n = v => Math.round(v).toLocaleString('en-US');
+  const fmt = v => Number.isInteger(v) ? v : v.toFixed(1);
+  let delta = '';
+  if(prev && prevVol>0 && st.volume>0){ const pct = Math.round((st.volume-prevVol)/prevVol*100); delta = `<span class="ws-delta ${pct>=0?'up':'down'}">${pct>=0?'+':''}${pct}% vs last time</span>`; }
+  const max = muscles.length ? load[muscles[0]] : 1;
+  const fill = m => load[m] ? `var(--accent);fill-opacity:${(0.3+0.7*Math.min(1,load[m]/max)).toFixed(2)}` : 'rgba(255,255,255,.13)';
+  const tiles = [];
+  if(totalMin) tiles.push(['Duration', totalMin+'<small> min</small>', '']);
+  if(st.sets){ tiles.push(['Volume', n(st.volume)+'<small> kg</small>', delta]); tiles.push(['Sets', st.sets, '']); tiles.push(['Reps', n(st.reps), '']); }
+  if(st.tmMin) tiles.push(['Treadmill', Math.round(st.tmMin)+'<small> min</small>', '']);
+  document.getElementById('summaryBody').innerHTML = `
+    <div class="ws-head"><div class="ws-kicker">Workout complete</div><div class="ws-title">${esc(e.routineName||'Workout')}</div></div>
+    <div class="ws-tiles">${tiles.map(t=>`<div class="ws-tile"><b>${t[1]}</b><span>${t[0]}</span>${t[2]}</div>`).join('')}</div>
+    ${bests.length ? `<div class="ws-sec">New bests</div><div class="ws-bests">${bests.map(b=>`<div><span>${esc(b.name)}</span><b>${b.kg} kg <em>+${b.up}</em></b></div>`).join('')}</div>` : ''}
+    ${muscles.length ? `<div class="ws-sec">Muscles worked</div>
+      <div class="ws-map"><div>${muscleBodySvg('front', fill)}</div><div>${muscleBodySvg('back', fill)}</div></div>
+      <div class="ws-chips">${muscles.slice(0,6).map(m=>`<span>${MUSCLES[m]} <b>${fmt(load[m])}</b></span>`).join('')}</div>` : ''}
+    <div class="row" style="margin-top:16px">
+      <button class="cancel" onclick="closeModal('summaryModal');showDay('${dateStr}')">View details</button>
+      <button class="save" onclick="closeModal('summaryModal')">Done</button>
+    </div>`;
+  document.getElementById('summaryModal').classList.add('show');
 }
 
 /* =========================================================================
@@ -2217,6 +2334,23 @@ function computeMuscleLoads(range){
   return { load, sets, exs, last, fatigue, day: range==='last' ? (endStr!=='9999-99-99' ? endStr : null) : null };
 }
 
+// Weekly set targets per muscle [min, max], in the same "fractional" sets the
+// map already counts (primary = 1 set, helper muscle = 0.5). Defaults follow the
+// hypertrophy volume literature: ~4 sets/week is the minimum that grows, ~10+
+// grows clearly better, with diminishing returns beyond the upper end
+// (Schoenfeld 2017; Pelland 2025; RP volume landmarks). Small/helper muscles
+// that get a lot of indirect work sit lower. Editable in "Set Targets".
+const MUSCLE_TARGET_DEFAULTS = {
+  chest:[8,16], frontDelts:[4,8], sideDelts:[8,18], rearDelts:[4,12],
+  traps:[4,12], upperBack:[8,16], lats:[8,16], lowerBack:[2,8],
+  biceps:[8,18], triceps:[6,14], forearms:[2,10], abs:[4,12], obliques:[2,8],
+  glutes:[6,16], quads:[6,14], hamstrings:[4,10], adductors:[2,8], calves:[6,14]
+};
+function muscleTarget(m){
+  const c = state.muscleTargets && state.muscleTargets[m];
+  return (Array.isArray(c) && c.length===2) ? c : MUSCLE_TARGET_DEFAULTS[m];
+}
+function muscleTargetStatus(m, v){ const [lo,hi] = muscleTarget(m); return v < lo ? 'low' : v > hi ? 'high' : 'ok'; }
 let mmRange = 'week';     // 'last' | 'week' | '30'
 let mmMode = 'volume';    // 'volume' | 'recovery'
 let mmSelected = null;
@@ -2237,7 +2371,9 @@ function renderMusclesBlock(){
   const isFresh = m => !fatigue[m];
   const fresh = Object.keys(MUSCLES).filter(isFresh).length;
   const full = MM_FULL_AT[mmRange];
-  const level = m => mmMode==='recovery' ? fatigue[m] : (load[m] ? Math.min(1, load[m]/full) : 0);
+  const weekly = mmMode==='volume' && mmRange==='week';
+  // This week: a muscle is fully lit once it reaches its own weekly minimum.
+  const level = m => mmMode==='recovery' ? fatigue[m] : (load[m] ? Math.min(1, load[m]/(weekly ? muscleTarget(m)[0] : full)) : 0);
   const fill = m => {
     const t = level(m);
     const base = t ? `var(--accent);fill-opacity:${(0.3 + 0.7*t).toFixed(2)}` : 'rgba(255,255,255,.13)';
@@ -2249,7 +2385,21 @@ function renderMusclesBlock(){
   const sel = mmSelected;
 
   let rows;
-  if(mmMode==='volume'){
+  let targetSummary = '';
+  if(weekly){
+    const all = Object.keys(MUSCLES).sort((a,b)=>load[b]-load[a]);
+    const okCount = all.filter(m=>muscleTargetStatus(m, load[m])!=='low').length;
+    targetSummary = `<div class="mx-tsum"><b>${okCount}</b> of ${all.length} muscles at weekly target</div>`;
+    rows = all.map(m=>{
+      const [lo,hi] = muscleTarget(m), v = load[m], st = muscleTargetStatus(m, v);
+      const scale = Math.max(hi*1.25, v);
+      const tag = st==='ok' ? '<i class="mx-ok">✓</i>' : st==='high' ? '<i class="mx-hi">↑</i>' : '';
+      return `<div class="mx-row mx-trow ${st} ${m===sel?'sel':''}" onclick="selectMuscle('${m}')">
+        <span class="mx-row-name">${MUSCLES[m]}</span>
+        <div class="mx-row-bar"><span class="mx-zone" style="left:${(lo/scale*100).toFixed(1)}%;width:${((hi-lo)/scale*100).toFixed(1)}%"></span><div style="width:${v?Math.max(3, v/scale*100).toFixed(1):0}%"></div></div>
+        <span class="mx-row-val">${tag}${fmt(v)}<em>/${lo}–${hi}</em></span></div>`;
+    }).join('');
+  } else if(mmMode==='volume'){
     const ranked = Object.keys(MUSCLES).filter(m=>load[m]>0).sort((a,b)=>load[b]-load[a]);
     const max = ranked.length ? load[ranked[0]] : 1;
     rows = ranked.length ? ranked.map(m=>`<div class="mx-row ${m===sel?'sel':''}" onclick="selectMuscle('${m}')">
@@ -2272,14 +2422,14 @@ function renderMusclesBlock(){
   const info = sel ? `<div class="mx-info">
       <div class="mx-info-top"><span class="mx-info-name">${MUSCLES[sel]}</span><button class="mx-info-x" onclick="selectMuscle('${sel}')">✕</button></div>
       <div class="mx-info-stats">
-        <div><b>${fmt(load[sel])}</b><span>sets ${MM_RANGE_LABEL[mmRange]}</span></div>
+        <div><b>${fmt(load[sel])}</b><span>sets ${MM_RANGE_LABEL[mmRange]}${weekly?` · target ${muscleTarget(sel)[0]}–${muscleTarget(sel)[1]}`:''}</span></div>
         <div><b>${ago[sel]===null?'—':ago[sel]<=0?'Today':ago[sel]+'d'}</b><span>${ago[sel]===null?'never trained':'since last trained'}</span></div>
       </div>
       ${exs[sel].size ? `<div class="mx-info-ex">${[...exs[sel]].map(n=>`<span>${esc(n)}</span>`).join('')}</div>` : ''}
     </div>` : '';
 
   const legend = mmMode==='volume'
-    ? `<div class="mm-legend"><span>0</span><div class="mm-legend-bar"></div><span>${full}+ sets</span></div>`
+    ? `<div class="mm-legend"><span>0</span><div class="mm-legend-bar"></div><span>${weekly?'weekly target':full+'+ sets'}</span></div>`
     : `<div class="mm-legend"><span>Fresh</span><div class="mm-legend-bar"></div><span>Just trained</span></div>`;
   const unmatched = unmappedExerciseNames().length;
   const rangeSeg = mmMode==='volume' ? `<div class="mm-seg mm-seg-sm" onclick="event.stopPropagation()">
@@ -2313,12 +2463,34 @@ function renderMusclesBlock(){
         ${rangeSeg}
         <span class="chevron ${mmPanelOpen?'open':''}">▾</span>
       </div>
-      ${mmPanelOpen ? `<div class="mx-list">${rows}</div>` : ''}
+      ${mmPanelOpen ? `${targetSummary}<div class="mx-list">${rows}</div>` : ''}
       ${mmPanelOpen ? `<div class="mx-card-foot">
+        ${weekly?`<button class="mx-links-btn" onclick="openTargetEditor()">Set Targets</button>`:''}
         <button class="mx-links-btn" onclick="openMuscleEditor()">Muscle Links${unmatched?` <span class="mm-badge">${unmatched} unmatched</span>`:''}</button>
       </div>` : ''}
     </div>`;
 }
+function openTargetEditor(){
+  document.getElementById('targetEditBody').innerHTML = `
+    <div class="body-hint" style="text-align:left;margin:0 0 10px">Sets per week for each muscle. A set counts 1 for the main muscle and 0.5 for helper muscles, same as the map.</div>
+    <div class="tg-list">${Object.keys(MUSCLES).map(m=>{ const [lo,hi]=muscleTarget(m);
+      return `<div class="tg-row"><span>${MUSCLES[m]}</span>
+        <input type="number" inputmode="numeric" min="0" max="60" value="${lo}" onchange="setMuscleTarget('${m}',0,this.value)"><em>–</em>
+        <input type="number" inputmode="numeric" min="0" max="60" value="${hi}" onchange="setMuscleTarget('${m}',1,this.value)"></div>`; }).join('')}</div>
+    <button class="cancel" style="width:100%;margin-top:12px" onclick="resetMuscleTargets()">Reset to recommended</button>`;
+  document.getElementById('targetEditModal').classList.add('show');
+}
+function setMuscleTarget(m, idx, v){
+  const n = Math.max(0, Math.min(60, Math.round(parseFloat(v))));
+  if(isNaN(n)) return openTargetEditor();
+  const t = muscleTarget(m).slice(); t[idx] = n;
+  if(t[1] < t[0]){ if(idx===0) t[1] = t[0]; else t[0] = t[1]; }
+  const d = MUSCLE_TARGET_DEFAULTS[m];
+  state.muscleTargets = state.muscleTargets || {};
+  if(t[0]===d[0] && t[1]===d[1]) delete state.muscleTargets[m]; else state.muscleTargets[m] = t;
+  save(); openTargetEditor(); refreshMusclesBlock();
+}
+function resetMuscleTargets(){ state.muscleTargets = {}; save(); openTargetEditor(); refreshMusclesBlock(); }
 function refreshMusclesBlock(){
   const el = document.getElementById('mxBlock');
   if(el) el.innerHTML = renderMusclesBlock();
@@ -2926,6 +3098,50 @@ function openProfile(){
     <div class="body-hint" style="text-align:left">Used for BMI, body fat and calories. Your activity level is worked out from your workout plan.</div>`;
   renderMeasureTable();
   document.getElementById('profileModal').classList.add('show');
+}
+/* ---- Export: CSV (one row per set / measurement / day) and a full JSON backup ---- */
+function csvCell(v){ v = v==null ? '' : String(v); return /[",\n\r;]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+function toCsv(rows){ return '\ufeff' + rows.map(r=>r.map(csvCell).join(',')).join('\r\n'); }
+function downloadFile(name, text, type){
+  const url = URL.createObjectURL(new Blob([text], {type}));
+  const a = document.createElement('a'); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+function buildExport(kind){
+  const stamp = todayStr();
+  if(kind==='workouts'){
+    const rows = [['date','routine','exercise','type','set','kg','reps','seconds','speed_kmh','incline_pct','treadmill_min','session_min','notes']];
+    state.workoutLog.slice().sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{
+      const sess = e.durationSec ? Math.round(e.durationSec/60) : '';
+      (e.exercises||[]).forEach(ex=>{
+        if(ex.type==='treadmill'){ const t = ex.treadmill||{};
+          rows.push([e.date, e.routineName, ex.name, 'treadmill', '', '', '', '', t.speed||'', t.incline||'', t.duration||'', sess, ex.notes||'']); return; }
+        (ex.sets||[]).forEach((st,i)=>rows.push([e.date, e.routineName, ex.name, ex.timed?'timed':'weights', i+1, st.kg, ex.timed?'':st.reps, ex.timed?st.reps:'', '', '', '', sess, ex.notes||'']));
+      });
+    });
+    return { name:`up-workouts-${stamp}.csv`, text:toCsv(rows), type:'text/csv;charset=utf-8', count:rows.length-1 };
+  }
+  if(kind==='measurements'){
+    const rows = [['date','measurement','value','unit']];
+    state.measurements.slice().sort((a,b)=>a.date.localeCompare(b.date) || a.type.localeCompare(b.type))
+      .forEach(m=>rows.push([m.date, m.type, m.value, m.unit || (MEASURE_TYPES.find(t=>t.key===m.type)||{}).unit || '']));
+    return { name:`up-measurements-${stamp}.csv`, text:toCsv(rows), type:'text/csv;charset=utf-8', count:rows.length-1 };
+  }
+  if(kind==='steps'){
+    const st = (healthData && healthData.steps) || {};
+    const rows = [['date','steps']];
+    Object.keys(st).sort().forEach(k=>{ if(st[k] && Number.isFinite(st[k].count)) rows.push([k, st[k].count]); });
+    return { name:`up-steps-${stamp}.csv`, text:toCsv(rows), type:'text/csv;charset=utf-8', count:rows.length-1 };
+  }
+  return { name:`up-backup-${stamp}.json`, text:JSON.stringify({ exportedAt:new Date().toISOString(), appVersion:APP_VERSION, state, health:healthData||null }, null, 2), type:'application/json', count:1 };
+}
+function exportData(kind){
+  const f = buildExport(kind);
+  const btn = window.event && window.event.currentTarget;
+  if(!f.count){ if(btn){ const o=btn.innerHTML; btn.textContent='Nothing to export'; setTimeout(()=>btn.innerHTML=o,1500); } return; }
+  downloadFile(f.name, f.text, f.type);
+  if(btn){ const o=btn.innerHTML; btn.textContent='✓ Downloaded'; setTimeout(()=>btn.innerHTML=o,1500); }
 }
 function setBodyProfile(field, v){
   if(field==='heightCm'){ const n=parseFloat(v); state.heightCm = (n>=100 && n<=250) ? n : null; }
